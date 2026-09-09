@@ -2,6 +2,8 @@
 
 React + Vite + Recharts 构建的撤稿统计研究网站。**前端只发布预聚合统计结果、36 条以内的展示样本和研究说明，不下载或解压完整论文数据。**
 
+🌐 在线发布页：https://scholarly-retraction-observatory.9992099.xyz
+
 ## 架构
 
 ```text
