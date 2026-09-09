@@ -47,6 +47,19 @@ class Aggregates(unittest.TestCase):
         for key in ['summary','trend','taxonomies','insights']:
             self.assertEqual(a[key],b[key])
         self.assertEqual(set(b['taxonomies']),{'rw'})
+    def test_institution_placeholders_deduplicate_and_preserve_known(self):
+        rows=[paper(institutions=['Unknown','unavailable',' I University']),
+              paper('b',institutions=['Unavailable.','No affiliation available']),
+              paper('c',institutions=[]),paper('d',institutions=['Unknown University'])]
+        r=leaders(rows,'rw','institutions')
+        counts={x['id']:x['count'] for x in r['full']}
+        self.assertEqual(counts['__unknown_institution__'],3)
+        self.assertEqual(counts['Unknown University'],1)
+        self.assertEqual(r['known_papers'],2)
+        self.assertEqual(r['unique_entities'],2)
+        self.assertEqual(r['missing']['papers_without_known'],2)
+        self.assertEqual(r['missing']['fractional_count'],2.5)
+        self.assertEqual(sum(x['count'] for x in r['fractional']),4)
     def test_percentile(self):
         self.assertEqual(percentile([0,10],.25),2.5)
         self.assertIsNone(percentile([],.5))

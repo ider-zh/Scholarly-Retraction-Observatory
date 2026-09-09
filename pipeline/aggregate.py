@@ -3,8 +3,10 @@ from collections import Counter, defaultdict
 import hashlib
 try:
     from .taxonomy import labels, subject_parts, PREFIXES, SOURCE
+    from .institutions import institution_members, is_missing, UNKNOWN_ID
 except ImportError:
     from taxonomy import labels, subject_parts, PREFIXES, SOURCE
+    from institutions import institution_members, is_missing, UNKNOWN_ID
 
 LAG_EDGES = (0, 365.25, 730.5, 1826.25, 3652.5, float('inf'))
 LAG_LABELS = ('不足 1 年', '1–2 年', '2–5 年', '5–10 年', '10 年及以上')
@@ -30,16 +32,23 @@ def members(p, taxonomy, dimension):
     if taxonomy not in ('rw','rw_level1'):
         raise ValueError('Only Retraction Watch may contribute to statistical charts')
     if dimension=='subjects': return labels(p, 1 if taxonomy=='rw_level1' else 2)
+    if dimension=='institutions': return institution_members(p)
     return {v:v for v in p.get(dimension,[])}
 
 def leaders(papers, taxonomy, dimension, limit=20):
     names={}; full=Counter();fractional=Counter();covered=0
     for p in papers:
         vs=members(p,taxonomy,dimension)
-        if vs:covered+=1
+        if any(k != UNKNOWN_ID for k in vs):covered+=1
         for k,n in vs.items():names[k]=n;full[k]+=1;fractional[k]+=1/len(vs)
     def top(c):return [{'id':k,'name':names[k],'count':round(v,3)} for k,v in sorted(c.items(),key=lambda kv:(-kv[1],kv[0]))[:limit]]
-    return {'full':top(full),'fractional':top(fractional),'known_papers':covered,'unique_entities':len(full),'scope_papers':len(papers),'limit':limit}
+    result={'full':top(full),'fractional':top(fractional),'known_papers':covered,'unique_entities':len(full)-int(UNKNOWN_ID in full),'scope_papers':len(papers),'limit':limit}
+    if dimension=='institutions':
+        variants=Counter(v for p in papers for v in set(p.get('institutions') or ['']) if is_missing(v))
+        result['missing']={'papers_with_unknown':full[UNKNOWN_ID], 'papers_without_known':len(papers)-covered,
+                           'variants':[{'raw':v,'papers':n} for v,n in variants.most_common()],
+                           'fractional_count':round(fractional[UNKNOWN_ID],3)}
+    return result
 
 def disciplines(papers,taxonomy,current_year):
     groups=defaultdict(list);names={};weights=Counter()

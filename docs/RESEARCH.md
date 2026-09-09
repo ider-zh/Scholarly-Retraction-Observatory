@@ -93,3 +93,9 @@ Retraction Watch 由 Ivan Oransky 与 Adam Marcus 于 2010 年创办，由美国
 `pipeline/aggregate.py` 不读取 `oa` 字段生成任何统计维度；输入 OA 匹配结果的变化不改变 RW 统计。全量跨源核验尚未完成。当前 1,000 次 DOI 查询、998 个匹配不是核验准确率，也不是代表性抽样。
 
 发布的分数计数保留三位小数，汇总时可能存在舍入误差。
+
+## 机构缺失值归一化
+
+`pipeline/institutions.py` 使用完整字符串白名单匹配：Unicode NFKC、大小写、空格及首尾标点归一化后，将 Unknown、unavailable、Not available、No affiliation available/given/found、Affiliation unknown（含来源拼写错误）、None、空值等合为一个“机构未知”组。仅匹配完整占位值，不按关键词删除真实机构名称。原始署名保留。
+
+同一论文的多个缺失标签只计一次；如果同时有真实机构，保留真实机构和一个未知组。全计数各贡献 1，分数计数在合并后的不同成员（含未知组）间平均分配。未知组在图中标明为缺失值，不计入真实机构身份数；known_papers 只统计至少有一个已知机构的论文。附缺失写法审计表，各写法可能出现在同一论文中，不能简单相加得到去重未知论文数。
