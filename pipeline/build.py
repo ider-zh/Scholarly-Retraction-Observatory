@@ -1,6 +1,10 @@
 """Reproducible Retraction Watch cohort + optional OpenAlex enrichment. Python 3.11+."""
-import argparse, collections, csv, datetime as dt, gzip, hashlib, io, json, os, pathlib, re, time
+import argparse, collections, csv, datetime as dt, hashlib, io, json, os, pathlib, re, time
 import urllib.request, urllib.error, urllib.parse
+try:
+    from .aggregate import aggregate
+except ImportError:
+    from aggregate import aggregate
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RW_URL = 'https://gitlab.com/crossref/retraction-watch-data/-/raw/main/retraction_watch.csv'
 
@@ -119,23 +123,19 @@ def main():
     papers, notices, quality = normalize(rows, args.as_of)
     enrichment = {'attempted_dois':0, 'matched_papers':0, 'corpus':args.corpus, 'selection':'not requested'}
     if args.enrich: enrichment = enrich(papers, args.oa_limit, args.corpus, ROOT / 'data/cache' / args.as_of / args.corpus)
-    meta = {'schema_version':1, 'generated_at':dt.datetime.now(dt.timezone.utc).isoformat(), 'as_of':args.as_of,
+    meta = {'schema_version':2, 'generated_at':dt.datetime.now(dt.timezone.utc).isoformat(), 'as_of':args.as_of,
             'cohort':'Retraction Watch: Retraction notices, unique original papers', 'source_url':RW_URL,
             'raw_sha256':hashlib.sha256(raw).hexdigest(), 'paper_count':len(papers), 'notice_count':len(notices),
             'quality':quality, 'openalex':enrichment, 'license':'Retraction Watch / Crossref: CC0; OpenAlex: CC0',
             'partial_year':int(args.as_of[:4])}
-    # One versioned payload, manifest written last. Publication cannot mix runs.
-    version = hashlib.sha256(json.dumps([meta,papers], sort_keys=True).encode()).hexdigest()[:16]
-    out = ROOT / 'dist/data'; out.mkdir(parents=True,exist_ok=True)
-    shards=[]
-    for start in range(0,len(papers),3000):
-        name=f'papers-{version}-{start//3000:03}.json.gz'
-        payload=json.dumps(papers[start:start+3000],ensure_ascii=False,separators=(',', ':')).encode()
-        temp=out/(name+'.tmp');temp.write_bytes(gzip.compress(payload,mtime=0));temp.replace(out/name);shards.append(name)
-    atomic(out/'manifest.json', {'meta':meta,'shards':shards})
-    for f in out.glob('papers-*'):
-        if f.name not in shards: f.unlink()
-    atomic(ROOT/'data/processed/notices.json',notices)
-    atomic(ROOT/'data/processed/quality.json',meta)
+    # Full records and evidence remain local; only aggregates and a bounded sample are public.
+    atomic(ROOT/'data/processed/papers.json', papers)
+    atomic(ROOT/'data/processed/notices.json', notices)
+    atomic(ROOT/'data/processed/quality.json', meta)
+    audit_path = ROOT/'data/reference/openalex-audit.json'
+    audit = json.loads(audit_path.read_text()) if audit_path.exists() else None
+    report, samples = aggregate(papers, meta, audit)
+    atomic(ROOT/'public/data/report.json', report)
+    atomic(ROOT/'public/data/samples.json', samples)
     print(json.dumps(meta,ensure_ascii=False,indent=2))
 if __name__ == '__main__': main()

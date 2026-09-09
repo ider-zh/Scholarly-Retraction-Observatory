@@ -1,4 +1,4 @@
-name: Refresh research data
+name: Refresh aggregate research statistics
 on:
   workflow_dispatch:
   schedule:
@@ -18,25 +18,24 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Verify transformation rules
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Verify analytical rules
         run: python -m unittest discover -s tests
-      - name: Download and enrich all DOI
+      - name: Build aggregate statistics offline
         env:
           OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
         run: python pipeline/build.py --download --enrich --corpus all
-      - name: Preserve research provenance
-        uses: actions/upload-artifact@v4
-        with:
-          name: retraction-source-and-audit
-          path: |
-            data/raw/retraction_watch.csv
-            data/processed/
-          retention-days: 90
-      - name: Propose updated dataset
+      - name: Build frontend and enforce public data boundary
+        run: npm run build
+      - name: Propose statistics update only
         uses: peter-evans/create-pull-request@v7
         with:
           branch: data/weekly-refresh
-          commit-message: Refresh Retraction Watch and OpenAlex research snapshot
-          title: Refresh retraction research dataset
-          body: Review the generated manifest, matching coverage and source audit before merging. The website deploys from main after merge.
-          add-paths: dist/data/
+          commit-message: Refresh aggregate statistics and bounded display samples
+          title: Refresh retraction research statistics
+          body: Only precomputed statistics and up to 36 illustrative samples are published. Review the cohort, quality counts, matching coverage and generated observations before merging. No raw records or compressed corpus are included.
+          add-paths: public/data/
