@@ -1,6 +1,10 @@
 """Publish compact, precomputed statistics. Never publish the analytical corpus."""
 from collections import Counter, defaultdict
 import hashlib
+try:
+    from .taxonomy import labels, subject_parts, PREFIXES, SOURCE
+except ImportError:
+    from taxonomy import labels, subject_parts, PREFIXES, SOURCE
 
 LAG_EDGES = (0, 365.25, 730.5, 1826.25, 3652.5, float('inf'))
 LAG_LABELS = ('不足 1 年', '1–2 年', '2–5 年', '5–10 年', '10 年及以上')
@@ -23,10 +27,10 @@ def timeseries(papers, current_year):
     return out
 
 def members(p, taxonomy, dimension):
-    if taxonomy=='rw':return {v:v for v in p.get(dimension,[])}
-    oa=p.get('oa') or {}
-    if dimension=='subjects':return {oa.get('field_id') or oa['field']:oa['field']} if oa.get('field') else {}
-    return oa.get(dimension) or {}
+    if taxonomy not in ('rw','rw_level1'):
+        raise ValueError('Only Retraction Watch may contribute to statistical charts')
+    if dimension=='subjects': return labels(p, 1 if taxonomy=='rw_level1' else 2)
+    return {v:v for v in p.get(dimension,[])}
 
 def leaders(papers, taxonomy, dimension, limit=20):
     names={}; full=Counter();fractional=Counter();covered=0
@@ -70,15 +74,28 @@ def insights(papers,meta,ts,lag):
                       'evidence':{'lag_sample_size':lag['n'],'median_days':lag['median_days']}})
     return items
 
-def aggregate(papers, meta, audit=None, sample_limit=36):
+def aggregate(papers, meta, audit=None, sample_limit=36, background=None):
     current=meta['partial_year'];ts=timeseries(papers,current);lag=lag_stats(papers)
-    oa=[p for p in papers if p.get('oa')]
     report={'schema_version':2,'meta':meta,'summary':{'paper_count':len(papers),'lag':lag,'missing_publication_date':sum(not p.get('published') for p in papers),
              'known_subject_papers':sum(bool(p.get('subjects')) for p in papers)},'trend':ts,'taxonomies':{},'audit':audit,
              'insights':insights(papers,meta,ts,lag)}
-    for taxonomy,ps in [('rw',papers),('oa',oa)]:
-        report['taxonomies'][taxonomy]={'scope_papers':len(ps),'disciplines':disciplines(ps,taxonomy,current),
-            'institutions':leaders(ps,taxonomy,'institutions'),'authors':leaders(ps,taxonomy,'authors')}
+    domains=disciplines(papers,'rw_level1',current)
+    subjects=disciplines(papers,'rw',current)
+    for item in domains:
+        item['level']=1; item['english_name']=PREFIXES[item['id']][1]
+    for item in subjects:
+        prefix, label=subject_parts(item['id'])
+        item.update({'parent_id':prefix,'parent_name':PREFIXES[prefix][0],'label':label,'level':2})
+    report['taxonomies']['rw']={'scope_papers':len(papers),'domains':domains,'disciplines':subjects,
+        'institutions':leaders(papers,'rw','institutions'),'authors':leaders(papers,'rw','authors'),
+        'hierarchy_source':SOURCE,'unclassified_papers':sum('UNKNOWN' in labels(p,1) for p in papers)}
+    report['cross_validation']={
+        'role':'Cross-validation progress only; excluded from every statistical chart.',
+        'attempted_dois':meta.get('openalex',{}).get('attempted_dois',0),
+        'matched_papers':meta.get('openalex',{}).get('matched_papers',0),
+        'status':'DOI matching is not a completed record-by-record retraction verification.',
+        'selection':meta.get('openalex',{}).get('selection','not requested')}
+    report['source_background']=background
     # Fixed-size, deterministic illustration sample; not the data behind the charts.
     samples=sorted(papers,key=lambda p:hashlib.sha256(p['id'].encode()).hexdigest())[:sample_limit]
     samples=[{k:p.get(k) for k in ('id','doi','title','published','retracted','lag_days','subjects','rw_ids')} for p in samples]

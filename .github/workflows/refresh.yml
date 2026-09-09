@@ -26,9 +26,7 @@ jobs:
       - name: Verify analytical rules
         run: python -m unittest discover -s tests
       - name: Build aggregate statistics offline
-        env:
-          OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
-        run: python pipeline/build.py --download --enrich --corpus all
+        run: python pipeline/build.py --download
       - name: Build frontend and enforce public data boundary
         run: npm run build
       - name: Propose statistics update only

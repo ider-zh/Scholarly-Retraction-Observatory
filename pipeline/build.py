@@ -134,7 +134,9 @@ def main():
     atomic(ROOT/'data/processed/quality.json', meta)
     audit_path = ROOT/'data/reference/openalex-audit.json'
     audit = json.loads(audit_path.read_text()) if audit_path.exists() else None
-    report, samples = aggregate(papers, meta, audit)
+    background_path=ROOT/'data/reference/rw-background.json'
+    background=json.loads(background_path.read_text()) if background_path.exists() else None
+    report, samples = aggregate(papers, meta, audit, background=background)
     atomic(ROOT/'public/data/report.json', report)
     atomic(ROOT/'public/data/samples.json', samples)
     print(json.dumps(meta,ensure_ascii=False,indent=2))

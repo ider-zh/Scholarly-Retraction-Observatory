@@ -1,0 +1,11 @@
+{
+ "name":"Retraction Watch", "founded":2010, "reviewed_at":"2026-09-09",
+ "description":"由科学与医学新闻记者发起的科学诚信项目，开展撤稿报道、调查及结构化数据库整理。",
+ "organization":"The Center for Scientific Integrity（CSI，科学诚信中心）",
+ "organization_type":"美国 501(c)(3) 非营利组织",
+ "founders":[{"name":"Ivan Oransky","background":"医学博士、医学新闻记者；CSI 执行主任，曾任 Reuters Health 执行编辑。"},{"name":"Adam Marcus","background":"科学与医学新闻记者、编辑；CSI 编辑主任，拥有科学写作硕士背景。"}],
+ "database_relationship":"2023 年 9 月，Crossref 收购 Retraction Watch 数据库并支持开放分发；RW 团队继续维护数据。新闻网站与 CSI 保持独立，收购范围仅限数据库。",
+ "collection":"来源包括出版商网站、学术数据库检索、网络搜索和社区线索，由 Retraction Watch 团队持续整理与更新。",
+ "limitations":"这是有专业团队维护的可追溯事件数据库，不是全部期刊强制报送的全球登记系统。可能存在漏收、更新延迟、类别变更和记录错误；关键记录应回到出版商通知核验。",
+ "sources":[{"title":"CSI 官方机构与团队介绍","url":"https://centerforscientificintegrity.org/about-the-center-for-scientific-integrity/"},{"title":"Crossref 收购数据库公告","url":"https://www.crossref.org/blog/news-crossref-and-retraction-watch/"},{"title":"Crossref 数据字典与获取方式","url":"https://www.crossref.org/documentation/retrieve-metadata/retraction-watch/"},{"title":"RW Subject 分类官方说明","url":"https://retractionwatch.com/retraction-watch-database-user-guide/retraction-watch-database-user-guide-appendix-a-fields/"}]
+}

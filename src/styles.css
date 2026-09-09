@@ -4,3 +4,5 @@
 /* Keep explanatory text readable; compact chart ticks remain secondary. */
 .panel-head p,.caption,.analysis p,.notice,.scope-bar>span,.toggle button,.metric>span,.insight-grid p,.insight-grid .muted,.people-note>p,.method-steps p,.legend-list>div,.sample-list p{font-size:.875rem}.metric small,.analysis span,.accessible-table,footer{font-size:.75rem}
 .cohort-note{font-size:.875rem;color:#778ba5;margin:-6px 0 22px;line-height:1.8}
+
+.domain-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin:18px 0}.domain-grid button{padding:18px;text-align:left;border:1px solid #dce5ef;border-radius:10px;background:white;cursor:pointer;color:#243751}.domain-grid button.active,.domain-grid button:hover{border-color:#2563eb;background:#eff6ff}.domain-grid strong{display:block;font-size:25px;margin:10px 0}.domain-grid small{color:#64748b}.source-links{display:flex;gap:18px;flex-wrap:wrap;margin-top:20px}

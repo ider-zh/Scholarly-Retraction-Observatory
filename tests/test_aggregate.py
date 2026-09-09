@@ -28,6 +28,25 @@ class Aggregates(unittest.TestCase):
         self.assertEqual(r['summary']['paper_count'],70)
         self.assertNotIn('papers',r)
         self.assertNotIn('authors',s['items'][0])
+    def test_hierarchy_deduplicates_parents_and_weights_each_level(self):
+        r,_=aggregate([paper(subjects=['(HSC) A','(HSC) B','(BLS) A'])],META)
+        g=r['taxonomies']['rw']
+        self.assertEqual({x['id']:x['count'] for x in g['domains']},{'HSC':1,'BLS':1})
+        self.assertEqual([x['fractional_count'] for x in g['domains']],[.5,.5])
+        self.assertEqual(len(g['disciplines']),3)
+        # Published fractional values are rounded to three decimal places.
+        self.assertAlmostEqual(sum(x['fractional_count'] for x in g['disciplines']),1,delta=.0015)
+        self.assertEqual({x['parent_id'] for x in g['disciplines']},{'HSC','BLS'})
+    def test_unknown_subject_is_retained(self):
+        r,_=aggregate([paper(subjects=[]),paper('b',subjects=['Unrecognized'])],META)
+        self.assertEqual(r['taxonomies']['rw']['unclassified_papers'],2)
+        self.assertEqual(r['taxonomies']['rw']['domains'][0]['count'],2)
+    def test_openalex_cannot_change_statistics(self):
+        a,_=aggregate([paper()],META)
+        b,_=aggregate([paper(oa={'field':{'id':'fake','name':'fake'},'authors':['fake']})],META)
+        for key in ['summary','trend','taxonomies','insights']:
+            self.assertEqual(a[key],b[key])
+        self.assertEqual(set(b['taxonomies']),{'rw'})
     def test_percentile(self):
         self.assertEqual(percentile([0,10],.25),2.5)
         self.assertIsNone(percentile([],.5))

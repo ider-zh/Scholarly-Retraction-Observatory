@@ -52,11 +52,11 @@ Cloudflare 会根据 package-lock.json 安装依赖；也可将命令设为 `npm
 ## 更新统计数据
 
 ```bash
-# 完整匹配所有可用原论文 DOI
+# 可选交叉验证准备：匹配所有 DOI，不参与任何统计分析
 # 推荐先在环境变量中配置 OPENALEX_API_KEY，不要写入前端或提交到 Git
 python pipeline/build.py --download --enrich --corpus all
 
-# 仅更新 RW 主数据，无 OpenAlex 补充
+# 常规更新：仅使用 RW 主数据
 python pipeline/build.py --download
 
 # 调试用部分匹配：不是随机或代表性样本
@@ -65,7 +65,7 @@ python pipeline/build.py --download --enrich --oa-limit 1000
 npm run build
 ```
 
-GitHub Actions 每周和手动运行数据刷新：原始数据只在运行器内处理，更新 PR **仅提交 `public/data/`**。合并后 Cloudflare 构建新站点。完整匹配可能超出匿名 API 预算，推荐设置仓库 Secret `OPENALEX_API_KEY`。刷新失败不会提交不完整统计结果。
+GitHub Actions 每周和手动运行数据刷新：原始数据只在运行器内处理，更新 PR **仅提交 `public/data/`**。合并后 Cloudflare 构建新站点。常规刷新不调用 OpenAlex；可选交叉验证通过上述 CLI 单独执行。刷新失败不会提交不完整统计结果。
 
 原始 CSV 和处理后全库均不属于网站资产，也不进入更新 PR。正式论文研究应自行把原文件和其哈希保存到专门的数据归档；Actions 不再上传完整原始数据附件。
 
@@ -73,16 +73,16 @@ GitHub Actions 每周和手动运行数据刷新：原始数据只在运行器�
 
 1. 年度柱状图 + 后向三年均值，区分实际撤稿年与原论文发表年。
 2. 撤稿时滞环图和学科分组条形图。
-3. 学科数量分布、完整年度同比、学科 × 年份热力表。
+3. RW 官方前缀构成 7 个一级领域，130 个 Subject 构成二级标签；支持领域联动、数量分布、完整年度同比及学科 × 年份热力表。
 4. 学科 P25 / 中位数 / P75 时滞对比及单学科趋势。
-5. 机构和作者前列关联分布，支持全计数 / 分数计数，区分 RW 原始名称与 OpenAlex 身份键。
+5. 机构和作者前列关联分布，支持全计数 / 分数计数，仅使用 RW 原始名称。
 6. 每个主要图表附数据观察或读图解释，并分开呈现可能的解释与不能推出的结论。所有图表均可查看相应数据表。
 
 统计 CSV 只导出图表聚合结果。样本搜索仅检索 36 条以内的展示样本，不提供全库论文下载。
 
 ## 重要范围说明
 
-交付快照主总体是 RW 中 `RetractionNature=Retraction` 的记录，按原论文标识去重得到 **66,635** 篇。OpenAlex 已匹配 **998** 篇（查询字典序前 1000 个 DOI），其机构 / 作者 / 学科视图不是总体排名。
+交付快照主总体是 RW 中 `RetractionNature=Retraction` 的记录，按原论文标识去重得到 **66,635** 篇。OpenAlex 已匹配 **998** 篇（查询字典序前 1000 个 DOI），这只是 DOI 匹配进度，并未完成逐条撤稿核验；所有统计图表均排除 OpenAlex 数据。
 
 OpenAlex `is_retracted=true` 的 Work 记录可能包含撤稿通知；排除 `type:retraction` 后也仍可能包含被分为 article 的通知。本站不声称 66,635、135,236 或 97,729 是全球真实撤稿论文总数。恢复发表、更正等状态单列；主总体是当前 RW 文件的类别筛选结果，不是完整的历史事件重建。
 

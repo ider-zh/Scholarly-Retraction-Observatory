@@ -24,11 +24,8 @@ OpenAlex: https://help.openalex.org/data/works/attributes/
 |published|OriginalPaperDate|同文日期冲突取最早有效日期，并计入质量审计|
 |lag_days|retracted − published|负数排除于时滞统计，不删除论文；日期未知不插补|
 |subjects|RW Subject 分号多标签|不混合进 OpenAlex 学科体系|
-|oa.field|OpenAlex primary_topic.field|仅用主学科，缺失不推断；该视图只纳入有主学科的匹配论文|
 |institutions|RW Institution 原始字符串|可能包含院系、地址；不称作标准化大学排名|
-|oa.institutions|论文 authorships 中机构 ID|同一论文内机构 ID 去重，使用发表时署名，不使用作者目前单位|
 |authors|RW Author 原始姓名|同名可能合并、异名可能拆分|
-|oa.authors|OpenAlex Author ID|模型消歧仍可能错误，长作者列表可能截断|
 |rw_ids|所有关联 RW Record ID|用于追溯|
 
 DOI 标准化移除 resolver URL / doi: 前缀、转小写并解码 URL。CSV 中缺失 DOI 的 unavailable 等字样不是 DOI。遇到同 DOI 多条 OpenAlex Work，以字典序最小 ID 作可复现选择并标记 duplicate_doi_match；需要后续结合 OpenAlex merge/redirect 表人工或规则审查。不同 DOI 的重复论文不在当前自动去重范围。
@@ -41,14 +38,14 @@ DOI 标准化移除 resolver URL / doi: 前缀、转小写并解码 URL。CSV �
 - **年度数量同比**：(R_t − R_(t−1)) / R_(t−1)。前期零时为 NA；前期小于 20 标记小基数。当前看板固定比较快照年前两个完整年，避免随年份筛选改变增长定义。少量缺报仍可能影响完整历史年份。
 - **学科撤稿率（未实现）**：同一发表年 / 学科 / 作品类型 / corpus 的截至快照已撤稿论文数，除以该队列全部论文数。没有分母就不能叫撤稿率。不得用“当年撤稿数 / 当年发表数”冒充队列撤稿概率。
 
-趋势图默认展示 2000 到快照年，可切换展示范围。所有快照指标与机构 / 作者排名固定使用完整队列范围，不跟随趋势图筛选。学科页面可独立选择学科；RW 使用多标签，OpenAlex 使用主学科。机构 / 作者 OpenAlex 视图使用全部已匹配论文。不同体系不能直接比较名次。
+趋势图默认展示 2000 到快照年，可切换展示范围。所有快照指标与机构 / 作者排名固定使用完整队列范围，不跟随趋势图筛选。学科页面可切换一级／二级，并筛选所属领域。全部图表仅使用 RW；OpenAlex 仅在数据说明中显示交叉验证进度，不进入分类、排序或推断。
 
 ## 数据质量与复现
 - 清单保存原始 CSV SHA-256、生成时间、截止日期、源 URL、语料范围、匹配尝试数和命中数。
 - 完整数据仅保存在本地或 Actions 运行器的 data/processed。网站只发布 report.json 聚合统计和最多 36 条 samples.json 展示样本；采集失败不覆盖已发布站点。
 - OpenAlex 按原论文 DOI 批量查询，50 DOI / 请求；key 仅由环境变量提供。缓存按日期和 corpus 隔离；恢复同日任务复用缓存，跨日重新请求。
 - `--oa-limit 0` 全 DOI 匹配；正整数只取字典序前 N 个 DOI，是调试子集，不是随机样本。偏倚明显，不能用该子集声称总体学科 / 机构 / 作者分布。
-- 当前批次如果限量，网站顶部持续显示部分覆盖；无 DOI 论文仍保留于 RW 总体。
+- 匹配尝试与命中数仅在数据与方法页展示，DOI 命中不等于撤稿状态已验证；无 DOI 论文仍保留于 RW 总体。
 - API 是实时的；一次较长采集期间可能变化。CSV 下载亦未锁定 Git commit，只能用保存原文件的哈希复现该版本。正式发布研究时应保存原始文件和数据来源提交版本到独立归档。
 - 作者 / 机构匹配覆盖不是准确率。人工审计可按国家、学科、年份分层抽样核查 DOI、身份和日期。
 
@@ -72,3 +69,27 @@ DOI 标准化移除 resolver URL / doi: 前缀、转小写并解码 URL。CSV �
 独立 OpenAlex 数量核查保存在 data/reference/openalex-audit.json 并标注核查日期，网站只将其作为数据源差异介绍。它不会被混入 RW 主分析总体，也不声称已经完成全量对账。
 
 构建检查只允许 public/data 中存在 report.json 与 samples.json，限制样本最多 36 条、两份统计文件合计小于 2 MiB；拒绝发布 gzip、csv、parquet、ndjson 等数据资产。GitHub 更新工作流只提交聚合结果，不上传完整原始数据附件。
+
+## 两级学科体系与来源背景
+
+Retraction Watch 由 Ivan Oransky 与 Adam Marcus 于 2010 年创办，由美国非营利组织 Center for Scientific Integrity 支持。2023 年 9 月 Crossref 收购其数据库，RW 团队继续维护；新闻业务保持独立。详细背景及官方出处保存在 `data/reference/rw-background.json`，随聚合结果发布到网站。
+
+分类沿用 [RW 官方 Subject 前缀](https://retractionwatch.com/retraction-watch-database-user-guide/retraction-watch-database-user-guide-appendix-a-fields/)，不由 OpenAlex 推定：
+
+|一级前缀|中文展示|官方名称|
+|---|---|---|
+|B/T|商业与技术|Business and Technology|
+|BLS|基础生命科学|Basic Life Sciences|
+|ENV|环境科学|Environmental Sciences|
+|HSC|健康科学|Health Sciences|
+|HUM|人文学科|Humanities|
+|PHY|物理科学|Physical Sciences|
+|SOC|社会科学|Social Sciences|
+
+二级保留完整 Subject 标签作为 ID，例如 `(HSC) Medicine - Cardiology`。连字符不继续拆层；不同前缀下的同名学科保留独立身份。当前快照共有 130 个二级标签，该数量随来源更新变化。缺失或无法识别的前缀纳入 UNKNOWN，并保留原始标签。
+
+一级先将每篇论文的前缀去重，所以同一论文命中某领域两个二级学科时，该一级仍只计 1。跨领域合计仍可能超过论文总数。分数计数在两层分别使用该论文的不同成员数：一级 1/k₁，二级 1/k₂。筛选父领域不重新归一化，子学科分数之和不必等于父领域分数。例：一篇论文属于 HSC 两个标签与 BLS 一个标签，一级分别贡献 1/2，三个二级各贡献 1/3。
+
+`pipeline/aggregate.py` 不读取 `oa` 字段生成任何统计维度；输入 OA 匹配结果的变化不改变 RW 统计。全量跨源核验尚未完成。当前 1,000 次 DOI 查询、998 个匹配不是核验准确率，也不是代表性抽样。
+
+发布的分数计数保留三位小数，汇总时可能存在舍入误差。

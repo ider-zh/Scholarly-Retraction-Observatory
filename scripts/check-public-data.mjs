@@ -8,6 +8,9 @@ for(const dir of ['public','dist']){
  for(const p of list){assert(!/\.(gz|parquet|csv|ndjson|jsonl)$/i.test(p),`Raw data asset prohibited: ${p}`);if(p.endsWith('.json')||p.includes(`${path.sep}data${path.sep}`))assert(allowed.has(path.basename(p)),`Unexpected public data: ${p}`)}
  const report=JSON.parse(await readFile(path.join(dir,'data/report.json'),'utf8'));
  const samples=JSON.parse(await readFile(path.join(dir,'data/samples.json'),'utf8'));
+ assert.deepEqual(Object.keys(report.taxonomies),['rw']);
+ for(const child of report.taxonomies.rw.disciplines){const parent=report.taxonomies.rw.domains.find(x=>x.id===child.parent_id);assert(parent);assert(child.count<=parent.count)}
+ assert(report.source_background.sources.length>=3);
  assert.equal(report.schema_version,2);assert.equal(samples.schema_version,2);
  assert(samples.items.length<=36);assert.equal(samples.sample_count,samples.items.length);
  assert(!('papers' in report));assert(!('items' in report));
