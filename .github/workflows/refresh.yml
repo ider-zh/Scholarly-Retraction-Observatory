@@ -1,0 +1,42 @@
+name: Refresh research data
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
+permissions:
+  contents: write
+  pull-requests: write
+concurrency:
+  group: retraction-data-refresh
+  cancel-in-progress: false
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify transformation rules
+        run: python -m unittest discover -s tests
+      - name: Download and enrich all DOI
+        env:
+          OPENALEX_API_KEY: ${{ secrets.OPENALEX_API_KEY }}
+        run: python pipeline/build.py --download --enrich --corpus all
+      - name: Preserve research provenance
+        uses: actions/upload-artifact@v4
+        with:
+          name: retraction-source-and-audit
+          path: |
+            data/raw/retraction_watch.csv
+            data/processed/
+          retention-days: 90
+      - name: Propose updated dataset
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: data/weekly-refresh
+          commit-message: Refresh Retraction Watch and OpenAlex research snapshot
+          title: Refresh retraction research dataset
+          body: Review the generated manifest, matching coverage and source audit before merging. The website deploys from main after merge.
+          add-paths: dist/data/
