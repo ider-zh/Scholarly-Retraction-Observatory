@@ -24,6 +24,15 @@ Python 离线处理（原始 CSV / OpenAlex 缓存，仅本地或 Actions）
 - `scripts/check-public-data.mjs`：发布检查，拒绝 Gzip、CSV、Parquet、NDJSON 等数据文件；两份 JSON 总体积限制为 2 MiB。
 - `dist/`：Vite 生成的可发布产物，不提交 Git。
 
+## 下一阶段：快照分析与研究报告设计
+
+以下文档是下一阶段规格，**不是已完成的全量分析或已实现的网站功能**。完整 OpenAlex 快照下载并通过校验后，才启动新分析；当前 RW-only 统计和小规模 DOI 匹配的使用边界保持不变。
+
+- [OpenAlex Snapshot Analysis Spec v2](docs/OPENALEX_SNAPSHOT_ANALYSIS_SPEC.md)：区分标记记录与原论文候选、RW/OA 来源依赖、core/expansion 口径、国家归属、分子分母、匹配与日期、引用边、质量门槛和发布契约。
+- [Website Report Design](docs/WEBSITE_REPORT_DESIGN.md)：9 个报告章节、29 个独立分析图表规格、证据关联的数据解读、筛选联动、静态聚合数据契约、视觉与可访问性验收。
+
+新报告须保留旧报告入口，仅发布经过校验的聚合数据。新增 v3 JSON 文件前必须同步评审 schema 与精确资产 allowlist，不能删除原始数据禁入规则；规划继续保持全站聚合数据与样本合计 2 MiB、展示样本最多 36 条的预算。
+
 ## 开发与构建
 
 Node.js >=22.12，Python >=3.11。
