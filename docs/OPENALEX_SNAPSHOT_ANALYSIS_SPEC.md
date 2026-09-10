@@ -1,859 +1,394 @@
 # OpenAlex Snapshot Retraction Analysis Specification
 
-Status: Planned — execution starts only after the full OpenAlex Parquet snapshot download and integrity checks complete.
+Version: 2.0 · Reviewed: 2026-09-10
 
-## 1. Purpose
+**Status: design only; blocked on completion and validation of the intended OpenAlex snapshot.** This revision does not run a new analysis, change published statistics, or implement the website.
 
-This document specifies the next-stage retraction analysis for **Scholarly Retraction Observatory** using a full OpenAlex snapshot, with Retraction Watch (RW) retained as an independent retraction-event dataset.
+Companion: [Website Report Design](WEBSITE_REPORT_DESIGN.md). Existing production methodology: [RESEARCH.md](RESEARCH.md).
 
-The current `docs/RESEARCH.md` analysis remains unchanged: it uses Retraction Watch as its primary corpus and treats the existing limited OpenAlex DOI lookup only as cross-validation. The analysis defined here is a **new phase** and must not silently replace, merge into, or reinterpret the current RW-only statistics.
+## 1. Scope and review decisions
 
-The new phase begins only when:
+Preserve the current RW-only report. The existing limited OpenAlex DOI lookup is a debugging/enrichment subset, not a representative analytical sample. The snapshot phase is a separate, versioned report; it must not silently replace the current population, taxonomy, or observations.
 
-1. the intended OpenAlex Parquet snapshot has downloaded successfully;
-2. all required entity directories/manifests are present;
-3. file integrity/basic row-count checks pass;
-4. the snapshot date/version is recorded;
-5. the pipeline can reproduce the same source counts from a clean run.
+The review of the previous specification found the following issues. These decisions are normative for the new phase.
 
-Until those conditions are met, no OpenAlex-derived global retraction rate, country rate, institution rate, field rate, author rate, or citation analysis should be published as a completed result.
+| ID | Issue | Required correction |
+|---|---|---|
+| R01 | Every `is_retracted=true` work was effectively treated as an original paper | Separate flagged database records, original-paper candidates, and known notices; audit document role before rate publication |
+| R02 | Two datasets could be read as independent validation sources | OpenAlex documents its retraction flag as RW-derived; report reconciliation and enrichment, not independent confirmation [S2] |
+| R03 | Snapshot/API corpus differences were not operationalized | Freeze `core`, `expansion`, and `all` using `is_xpac`; never mix them in rates [S1] |
+| R04 | Country attribution assumed all countries require resolved institutions | Preserve strict institution-derived and broader authorship-country modes separately [S3] |
+| R05 | One observed country implied domestic collaboration | Introduce incomplete/unknown affiliation states and audit truncated author lists |
+| R06 | A single definition of share hid alternative denominators | Separate paper coverage, association share, fractional share, and cohort proportion |
+| R07 | DOI ambiguity and redirects were underspecified | Match original identifiers against all eligible OA works; quarantine ambiguous matches; never assume a redirect or choose the smallest ID |
+| R08 | Snapshot cutoffs and fixed follow-up windows were underspecified | Separate status-at-snapshot from dated RW events; specify common-cutoff and follow-up eligibility |
+| R09 | Concentration could double-count overlapping papers | Distinguish association concentration from unique-paper coverage of a selected entity set |
+| R10 | Citation totals were insufficient for event-time analysis | Require incoming citation edges, date precision, ambiguous-date bins, and follow-up denominators |
+| R11 | New JSON paths conflict with the current deployment guard | Define a versioned asset/schema migration, retaining raw-data prohibitions and the compact-data budget |
+| R12 | Website requirements stopped at generic chart principles | Add a chart catalogue, explanatory narrative contract, supported filters, failure states, and visual acceptance criteria |
 
----
+The repository's `data/reference/openalex-audit.json`, checked on 2026-09-09, already records a notice classified as `article`. Its stored counts are historical API observations, not new snapshot results or constants to copy into charts. Removing only `type=retraction` is therefore not a sufficient original-paper screen.
 
-## 2. Research goals
+## 2. Source responsibilities and dependence
 
-The full snapshot enables questions that cannot be answered reliably from the Retraction Watch corpus alone:
+**Retraction Watch (RW)** supplies original-paper identifiers, notice identifiers, dates, reasons, subjects, and recorded author/affiliation/venue strings. Its CSV also contains other notice categories; those are not equally comprehensive [S4]. Preserve the original-paper/notice distinction throughout ingestion.
 
-1. How many OpenAlex works are currently marked `is_retracted=true`, and how does this compare with RW after identifier matching?
-2. What is the publication-year distribution of retracted works?
-3. When RW supplies a retraction date, how long is the publication-to-retraction lag?
-4. What is the retraction **rate**, not merely the share of all retractions, by field, topic, country, institution, source, work type, OA status, and collaboration structure?
-5. Are retractions concentrated among a small number of authors, institutions, journals/sources, publishers, countries, or topics?
-6. Which retraction reasons in RW are associated with which OpenAlex topics/fields?
-7. How much citation impact do retracted works accumulate, and how much occurs after the retraction event where a reliable retraction date is available?
-8. How do the two datasets disagree: RW-only, OpenAlex-only, and matched works?
+**OpenAlex (OA)** supplies the scholarly graph, standardized entity associations, classification, and publication denominators. Its `is_retracted` field is documented as based on RW [S2]. Agreement measures metadata propagation/coverage and matching consistency, not two independent detections of retraction.
 
-All results are descriptive unless a later analysis explicitly defines a causal/statistical inference design.
+**Joined RW × OA** supports reason–topic, event lag, and citation-persistence analyses. Matching success does not demonstrate correct author disambiguation, accurate affiliation, or independently verified retraction status.
 
----
+Keep RW Subject, OA Topic hierarchy, and legacy Concepts as separate systems. Do not infer that RW raw author and affiliation lists are aligned by position; the RW guide explicitly warns against that inference [S5].
 
-## 3. Data sources and roles
+## 3. Snapshot completion and schema gate
 
-### 3.1 OpenAlex snapshot
+The complete intended Parquet download must pass the source gate before the new phase runs. Do not download both formats or ingest the legacy prefix as an additional population.
 
-Use the downloaded **Parquet** snapshot as the primary scholarly-graph and denominator source.
+Current documented Parquet prefix: `s3://openalex/data/parquet/`. Current snapshots provide combined and per-entity manifests; records are partitioned by update date, not publication or retraction date. The current manifest/schema, rather than a hard-coded historical directory list, is the authority [S1].
 
-Required or expected entities:
+Required procedure:
 
-- `works`
-- `authors`
-- `institutions`
-- `sources`
-- `publishers`
-- `topics`
-- `subfields`
-- `fields`
-- `domains`
-- `countries`
-- lookup entities required to interpret work type, OA, language, etc.
+1. Record the intended source prefix, release date, retrieval start/end, and a frozen copy/hash of the source manifest before ingestion.
+2. Enumerate the files from that manifest. Check presence, sizes, Parquet readability, schema, and row counts; do not treat successful `aws s3 sync` exit alone as analytical validation.
+3. Compare the source manifest again after transfer. A changing public prefix is not automatically an atomic snapshot. Reconcile to a single manifest generation before proceeding.
+4. Exclude stale/unlisted local partitions from ingestion. Never use an unrestricted glob over multiple snapshots or formats.
+5. Validate canonical ID uniqueness and boolean/null semantics of `is_retracted` and `is_xpac`. Unexpected duplicate IDs block canonicalization until explained; do not hide them with arbitrary deduplication.
+6. Record deletion-log availability and schema. Current documentation says deleted/merged-away IDs can return 404, not a survivor redirect [S6]. A deletion record alone does not identify a replacement.
+7. Persist a source-validation report. Local checksums establish local reproducibility; an S3 ETag must not be assumed to be a file MD5. Footer/row-count checks are not a cryptographic proof of content integrity.
 
-OpenAlex currently organizes its topic hierarchy as:
+Core capabilities require works and their identifiers, flags, dates, types, affiliations, and classifications. Entity dictionaries enrich labels and identities. Citation, publisher, author-career, and optional funding features get separate capability gates after the overall download gate passes. A missing optional field disables its dependent feature rather than fabricating values.
 
-`Domain -> Field -> Subfield -> Topic`
+Inspect actual nested Parquet schemas before writing adapters. Record detected field paths/types and adapter version. Do not assume every entity, field, or API-derived attribute exists in every release.
 
-Do not equate OpenAlex Topics with legacy Concepts or RW Subjects. They are separate classification systems and must remain separately labeled.
+## 4. Canonical entities, document roles, and analysis populations
 
-### 3.2 Retraction Watch
+### 4.1 Canonical records
 
-RW remains the stronger source for **retraction-event metadata**, especially:
+Maintain separate logical tables:
 
-- retraction date;
-- publication date when present;
-- retraction reason(s);
-- notice nature/status;
-- RW subject labels;
-- journal/publisher strings in the RW record;
-- author/affiliation strings as recorded by RW.
+- `oa_work`: one record per valid snapshot Work ID, raw provenance retained.
+- `rw_original`: one deduplicated original-paper record, retaining all contributing RW record IDs.
+- `rw_notice`: notice records/identifiers, nature, date, and source reasons; duplicate source rows are not automatically distinct events.
+- `work_notice_link`: original-to-notice relation and evidence.
+- `rw_oa_match`: candidates, selected match, evidence, ambiguity, and reconciliation state.
+- `work_entity_bridge`: deduplicated work–author/institution/country/topic/source associations and counting weights.
+- `citation_edge`: unique citing-work/target-work pairs for the selected targets; local only.
 
-RW does not provide a complete denominator for all published works and therefore must not be used alone to compute field/country/institution retraction rates.
+A work may have several notices; a bulk notice may refer to many originals. Keep both relations. Do not automatically merge a preprint with a version-of-record article or combine different DOIs just because titles resemble each other.
 
-### 3.3 Joined dataset
+### 4.2 Document-role policy
 
-A third analytical layer is produced only after matching:
+Maintain `document_role` and `role_evidence`: `original_supported`, `known_notice`, `suspected_notice`, `unresolved`, or `conflict`.
 
-`Retraction Watch <-> OpenAlex Work`
+Use original and notice identifiers in RW, explicit structured notice relations when available, and work type as auditable evidence. If one identifier appears in conflicting roles, quarantine it. Title patterns generate review candidates only; a title containing “retraction” is not sufficient evidence for deletion.
 
-This joined layer supports analyses such as:
+For analytical publication candidates, apply the same role policy to all denominator and numerator works. Known notices and unresolved role conflicts are excluded. Suspected notices require adjudication or an explicitly published exclusion/inclusion sensitivity analysis. `unresolved` means not independently confirmed as an original; never relabel it as confirmed merely because it is typed `article`.
 
-- Reason × OpenAlex Topic
-- Reason × Field
-- Retraction lag × Topic
-- Retraction lag × Country
-- post-retraction citation analysis
-- RW/OpenAlex coverage comparison
+### 4.3 Populations
 
-The joined layer is not the same population as either source dataset and must be labeled accordingly.
+| Key | Definition | Permitted interpretation |
+|---|---|---|
+| A0 | All unique OA records with `is_retracted=true`, within an explicit corpus | Flagged Work records; diagnostic total, not original-paper total |
+| D | All eligible publication candidates after corpus/type/date/document-role rules | Denominator corpus |
+| A1 | `A0 ∩ D` | Flagged publication candidates after documented screening |
+| B | RW Retraction-category deduplicated originals under the current RW methodology | RW-recorded original papers, not all historical retraction events |
+| C | High-confidence links from B to OA works, regardless of the OA flag | Matched/enriched RW population; may include OA flag false or missing |
+| C_D | `C ∩ D` with the required date cutoff for a particular metric | RW-recorded numerator inside the OA publication corpus |
 
----
+C is not necessarily a subset of A0. Matching only against flagged OA records would conceal RW originals whose flag has not propagated.
 
-## 4. Analysis populations
+Other RW notice categories remain available for quality/event context but are not added to B. A current-state CSV is not a complete longitudinal state-transition log: do not claim complete correction → concern → retraction → reinstatement histories.
 
-Every chart/table must declare which population it uses.
+## 5. Corpus, cutoffs, and eligible works
 
-### Population A — OpenAlex retracted works
+Record `oa_snapshot_date`, `rw_snapshot_date`, and `metric_observation_cutoff` independently. Never assign a date to an OA flag using `created_date`, `updated_date`, or a partition name.
 
-All unique OpenAlex works in the chosen snapshot satisfying the snapshot's retracted-work flag/definition.
+For the first snapshot release:
 
-Use for:
+- Default publication corpus: **core** (`is_xpac=false`). Publish `expansion` and `all` as separate diagnostics/sensitivity views only when validated. Missing corpus flags are audited, not silently treated as core.
+- Default work type: `article`; `review` is a separate stratum. A combined article/review view requires an explicit combined denominator. Future types are discovered from the pinned vocabulary [S7].
+- Default trend presentation begins in 2000; this is a display range, not permission to drop older works from source accounting. Each rate identifies its exact publication-year cohort/range.
+- Rates use publication cohorts; notice-year filters do not apply to the publication denominator.
+- For A1/D, observation is OA status at the OA snapshot. This cannot reconstruct status at an arbitrary earlier date.
+- For C_D/D, restrict RW events to an explicitly declared cutoff no later than the relevant OA snapshot for snapshot-aligned comparisons. Retain later RW events in a separate, visibly later-dated enrichment view.
+- For fixed 1/3/5-year outcomes, require dated events and complete elapsed follow-up through the declared cutoff. Call the result an **RW-recorded fixed-window proportion in an OA-covered cohort**, not a fully observed universal risk.
 
-- OpenAlex retracted-work counts;
-- publication-year trend;
-- OpenAlex topic/field distributions;
-- author/institution/country/source associations;
-- citation characteristics;
-- retraction-rate numerators when the denominator uses a compatible OpenAlex corpus.
+A recent cohort's lower observed proportion is not evidence of improvement. Older cohorts have longer opportunity for retraction. Cross-year causal or risk comparisons require an additional censoring/standardization design.
 
-### Population B — Retraction Watch retraction corpus
+## 6. Metric dictionary: counts, shares, and proportions
 
-The deduplicated RW corpus defined by `docs/RESEARCH.md`.
+Let P be the unique works in a chart's declared population and filter scope; `G(w)` its distinct observed members of the active dimension. Define full count `n_g = Σ_w 1[g ∈ G(w)]` and, for known-member fractional mode, `f_g = Σ_w 1[g ∈ G(w)] / |G(w)|` over nonempty sets.
 
-Use for:
+| Metric ID | Formula | Meaning / invariant |
+|---|---|---|
+| `work_count` | `|P|` | Unique works, not source rows or notices |
+| `linked_work_count` | `n_g` | One contribution per work per distinct member |
+| `paper_coverage_pct` | `100 * n_g / |P|` | Percentage of papers linked to g; sums may exceed 100% |
+| `association_share_pct` | `100 * n_g / Σ_h n_h` | Share of all member–paper associations; sums to 100% over included known members |
+| `fractional_work_count` | `f_g` | Work-equivalent allocation, not number of physical papers |
+| `fractional_share_pct` | `100 * f_g / N_known` | Sums to 100% over known members under known-only allocation |
+| `oa_flagged_cohort_per_10k` | `10000 * |A1_g| / |D_g|` | Observed flag-based cohort proportion after role screening |
+| `rw_recorded_cohort_per_10k` | `10000 * |C_D,g| / |D_g|` | RW-recorded events linked into the OA-covered cohort |
+| `annual_count_yoy_pct` | `100 * (R_t-R_(t-1))/R_(t-1)` | Growth in counts, not growth in individual misconduct risk |
 
-- retraction-event year;
-- reason taxonomy;
-- RW subject analysis;
-- publication-to-retraction lag;
-- notice/event-specific analyses.
+Choose an explicit share metric in UI and exports; never expose an unqualified `share` or `占比`. Top-N display does not change the denominator to Top-N unless explicitly labeled.
 
-### Population C — Matched RW × OpenAlex works
+Fractional rates are separately named weighted proportions: apply identical per-work dimension weights and eligible scope on both sides. Weights are set before a member display filter; selecting one country must not reallocate the paper's weight to it. Quantiles and unique-paper unions are not additive.
 
-Only records linked with a documented matching rule and match status.
+Compute denominators from canonical works, not entity-level `works_count` or `counts_by_year`, which are convenience summaries and may have different refresh periods/scope [S8].
 
-Use for cross-dataset analyses.
+Release safeguards (project policy, not scientific laws): show n/N for every rate; do not rank rates unless N ≥ 1,000 and numerator ≥ 20; mark count-growth baselines below 20; a prior count of zero gives undefined growth, not infinity. Keep all groups in an explanatory table, including valid zeros, while marking groups ineligible for ranking. Thresholds are versioned configuration.
 
-Never use Population C as if it represented all retracted papers unless measured coverage supports that claim.
+The census of a snapshot has no sampling uncertainty about its stored counts. Optional binomial intervals must be labeled model-based reference intervals, not coverage/misclassification uncertainty. Do not apply ordinary binomial intervals to fractional weights or pretend such intervals resolve source bias. `null`, zero, unknown, small-base, and not-computed are different states.
 
-### Population D — OpenAlex denominator corpus
+## 7. Country attribution and affiliation completeness
 
-All eligible OpenAlex works needed for rate calculations.
+Country refers to the location associated with an authorship on that work, **not nationality, citizenship, residence, funding origin, or an intrinsic paper country**.
 
-The denominator must match the numerator on:
+Store separate sets:
 
-- publication cohort;
-- work type;
-- field/topic attribution rule;
-- country/institution attribution rule;
-- snapshot/observation cutoff;
-- any explicit inclusion/exclusion filters.
+- `institution_country_codes`: countries of distinct resolved work-level institutions; default, preserving the previously agreed institution-linked interpretation.
+- `authorship_country_codes`: union of OA authorship `countries`; this can include address-derived countries without a resolved institution [S3].
+- `rw_country_labels`: RW's recorded affiliation/reliable-source country labels, kept as a separate source view [S5].
 
----
+Keep provenance, set differences, unresolved affiliation counts, and a `country_attribution_mode` in each chart. Do not silently union the two OA modes or borrow a current author's `last_known_institutions` to classify an old paper.
 
-## 5. Core distinction: count, share, and rate
+Full counting deduplicates countries within a work. CN, CN, US yields CN +1 and US +1. First-author and corresponding-author views are optional: each can have multiple countries or missing data. Neither establishes leadership or responsibility. RW list order cannot identify first-author institutions.
 
-These must never be conflated.
+For new OA-country fractional statistics, distribute weight equally over distinct known countries; wholly unknown papers form a separate missingness count. Publish that known-only allocation can over-credit observed countries on partially observed papers. An equal-author sensitivity rule requires within-author multi-affiliation splitting and its own name; it is not measured contribution.
 
-### Retraction count
+Classify collaboration as:
 
-Number of retracted works associated with a group.
+- `multi_country_observed`: at least two known countries; observed lower bound, even when incomplete;
+- `single_country_complete_observed`: exactly one known country and no detected missing/truncated authorship-country coverage;
+- `single_country_incomplete`: one country plus unresolved/truncated/uncertain coverage;
+- `country_unknown`: no usable country;
+- `completeness_unknown`: source does not permit a defensible completeness judgment.
 
-### Share of retractions
+Do not call all one-country rows “domestic.” Bilateral and 3+ bands describe **observed** country counts. Source documentation describes author-list caps in some representations; inspect the actual snapshot, stored counts, and flags rather than assuming every list is complete [S3].
 
-For group `g`:
+## 8. Institutions, authors, sources, and publishers
 
-`retracted works associated with g / all counted retraction associations`
+Use deduplicated work-level IDs, while retaining raw source strings. Do not merge real entities based only on display names.
 
-This answers: **Where are observed retractions distributed?**
+**Institutions:** default to directly attached institutions. Parent/lineage rollups are a separate mode; do not add a hospital and its parent university twice at the same reporting level. Unknown/unavailable placeholders are normalized by exact rules and shown outside Top-N real-entity rankings. The current RW rule that retains one unknown group alongside known institutions remains unchanged; new OA known-only fractional weights must be labeled differently rather than silently changing old RW results.
 
-### Retraction rate
+**Authors:** OA IDs reduce but do not eliminate split/merge ambiguity [S9]. Exclude null/deleted placeholder identities from named rankings and network centrality, while reporting their coverage. Repeat bands are 1, 2, 3–5, 6–10, and >10 unique linked works. Prefer aggregate distributions over public accusatory lists. Earliest indexed publication is not proven career start; derive it from works, not a short recent-year summary. Career-age analyses are optional and coverage-limited.
 
-For group `g` and a defined publication cohort:
+**Sources:** default venue is the primary publication source. Do not count all repository locations as separate journals. A journal-only analysis requires a journal-source filter on numerator and denominator. Preserve missing-source and non-journal states.
 
-`retracted eligible works in g / all eligible works in g`
+**Publishers:** use the source's host organization and validate whether it is a publisher rather than a repository's institution [S10]. Immediate publisher and parent group are different rollups. Current ownership is not necessarily ownership at publication or retraction; label snapshot-based publisher assignment. Historical responsibility requires dated ownership evidence, not the current entity record.
 
-This answers: **What fraction of the group's eligible publication corpus is retracted by the observation cutoff?**
+**OA status and language:** use the pinned work-level vocabulary, preserving unknown/new values. OA status is snapshot status, not necessarily access at publication; RW notice paywall status is not original-paper OA status. Metadata language is not automatically full-text language [S2].
 
-For comparability, publish rates per a convenient scale where useful, e.g. per 10,000 works.
+## 9. Disciplines and additional dimensions
 
-Do not compute `retractions occurring in year t / papers published in year t` and label it a retraction rate. Retraction is delayed; cohort-based denominators or explicit survival/censoring methods are required.
+RW Subject retains its official two-level prefix/label display. OA uses Domain → Field → Subfield → Topic. No synthetic RW-to-OA equivalence or Concept-to-Topic ladder is allowed.
 
----
+Primary-topic mode gives one path per classified work. Any-topic mode counts each distinct topic and deduplicates parents separately. In any-topic mode, sum of child full counts can exceed the parent's unique-paper count. Equal-member fractional weights recomputed independently at each level need not add from child to parent. An additive hierarchy chart must therefore use primary-topic mode or a separately defined leaf-conserving allocation.
 
-## 6. Country attribution specification
+Topic scores are not author contribution weights or calibrated retraction probabilities. Assigned topic breadth is an annotation-based proxy, not a complete measure of interdisciplinarity. Concepts are frozen legacy classification and unsuitable for unqualified current-year trend claims [S11].
 
-### 6.1 Principle
+Analysis catalogue:
 
-A paper does **not** have a single intrinsic country. Country association is derived from:
+| Dimension | Core measures | Additional requirement |
+|---|---|---|
+| Publication cohort | Counts, observed cohort proportions | Common corpus and follow-up explanation |
+| RW event year | First recorded retraction counts | Valid original/notice relationship and dates |
+| Subject / OA hierarchy | Counts, year heatmaps, rates where eligible | Separate taxonomies and attribution modes |
+| Reason | Multi-label prevalence, co-occurrence | Versioned raw-to-family mapping |
+| Institution / author | Linked works, repetition, concentration | Identity/missingness audit |
+| Country / collaboration | Linked works, rates, cooperation matrix | Country mode and completeness strata |
+| Source / publisher | Counts, rates, dated bursts | Primary venue, ownership basis |
+| Work type / OA status | Counts and matched-scope proportions | Actual schema vocabulary; snapshot semantics |
+| Team size | Counts, distribution, proportion by band | Observed/truncated author-list status |
+| Citation impact | Zero share, median, percentiles, ECDF | Citation availability and publication-age comparison |
+| Citation persistence | Before/after/ambiguous edges; fixed windows | Full incoming-edge scan and reliable event dates |
+| Funding / MeSH / SDG / keywords | Optional exploratory association views | Actual fields, source-specific coverage, no claim of comprehensive coverage |
 
-`Work -> Authorship -> Institution -> Country`
+Optional dimensions must not become default risk rankings merely because fields exist.
 
-Therefore the canonical stored representation should preserve all associated countries rather than overwrite them with one `paper_country`.
+## 10. Dates, event lag, and reasons
 
-Recommended derived fields:
+Preserve raw dates, parsed dates, precision, source, and conflict flags. For OA publication cohorts use the pinned OA publication year. For RW-only lag keep the existing RW date rule; joined lag uses valid RW original date by default, a tagged OA fallback when absent, and a sensitivity comparison for conflicts. Do not automatically choose the earliest date across unrelated versions/sources.
 
-- `country_ids[]`
-- `country_codes[]`
-- `country_count`
-- `first_author_country_ids[]` where available
-- `corresponding_author_country_ids[]` where available/reliable
-- `is_international_collaboration = country_count >= 2`
+Lag is first valid recorded retraction date minus the chosen original publication date. Store days; display days/365.25 as years. Exclude negative/invalid lag from valid-lag plots without deleting the work. Use explicit half-open bands: [0,1), [1,2), [2,5), [5,10), [10,∞) years. Publish sample n and date exclusions beside P25/P50/P75/P90 and ECDF.
 
-### 6.2 Default country analysis: full counting
+Coarse/uncertain dates become intervals, not invented January 1 event dates. A complete-looking source date does not prove original precision. Document precision uncertainty where unrecoverable. Lag distributions condition on recorded retraction; they are not survival probabilities for all papers.
 
-For the primary country-affiliation distribution:
+Keep raw RW reasons and a versioned many-label family mapping. Separate substantive reasons from notice/procedure descriptors. Do not collapse allegations, investigations, honest errors, and confirmed misconduct into an undifferentiated integrity verdict. Multi-label prevalence can exceed 100% in total.
 
-- deduplicate countries within each work;
-- each work contributes at most `1` to each distinct associated country;
-- multiple authors from the same country do not increase that country's count for that work;
-- an international work may contribute `1` to multiple countries.
+Default reason-by-paper statistics use the union of deduplicated reasons across that paper's included Retraction records and say so. Event-level analyses retain event-specific reasons. Linking a union to the first date does not prove every reason was known on that date. Unknown/unmapped labels remain visible and do not disappear from quality reporting.
 
-Example:
+## 11. Matching and reconciliation
 
-- Author A -> China
-- Author B -> China
-- Author C -> United States
-- Author D -> Japan
+Normalize DOI resolver prefixes, casing, whitespace, and URL encoding conservatively; keep the raw value. Recognize placeholder strings; do not strip arbitrary DOI suffix punctuation without evidence. PMID has its own validated namespace.
 
-Country full counts:
+Match **RW OriginalPaperDOI**, not the notice DOI, against canonical OA works. Exact PMID or another validated identifier may support a match where DOI is absent. Contradictory identifiers block automatic selection. Ambiguous one-to-many candidates stay ambiguous; no lexicographic-ID fallback from the old debug pipeline is allowed in this phase.
 
-- China +1
-- United States +1
-- Japan +1
+Use explicit fields rather than one overloaded status:
 
-The sum across countries can exceed the number of unique papers.
+- `match_method`: exact_doi / exact_pmid / other_validated_id / none;
+- `match_outcome`: unique / ambiguous / conflicting / unmatched;
+- `oa_record_state`: present / deleted / absent / survivor_mapping_verified;
+- `oa_retracted_flag`: true / false / null;
+- `original_notice_role` and supporting evidence.
 
-### 6.3 Fractional country counting
+Resolve survivors only from an actual documented mapping, preserving the old/new ID and mapping provenance. Never infer a merge target from an HTTP 404 or similar title [S6].
 
-Provide an optional fractional view:
+Publish a reconciliation matrix separating RW-matched/OA-flag-true, RW-matched/OA-flag-false, RW-matched/flag-missing, RW-unmatched, and OA-flagged-without-RW-match. Include ID availability and role-screening exclusions. Report both DOI-conditional match coverage and coverage of all RW originals.
 
-`weight(country, work) = 1 / number of distinct known countries on the work`
+Stratify missingness/matching by publication era, RW Subject, recorded country, and work type where available; use raw RW fields for unmatched records rather than inventing OA classifications. There is no assumption that unmatched records are random. Reconciliation is not precision/recall without an independently audited reference set.
 
-A work linked to China, USA, and Japan contributes `1/3` to each.
+## 12. Citation impact and persistence
 
-Do not mix author-weighted fractional counting with country-equal fractional counting in the same metric. If author-weighted allocation is explored, publish it as a separate sensitivity analysis.
+Static `cited_by_count` is a snapshot summary. Distinguish zero citations from unavailable data, include zeroes in distributions, and avoid comparing old and recent works as though they had equal citation opportunity.
 
-### 6.4 Country rate denominator
+For event-time analysis, scanning only retracted works' references finds their **outgoing** references, not incoming citations. Build the retracted-target ID set, scan referencing works, and retain distinct `(citing_work_id, target_original_work_id)` edges. The graph is based on resolved reference lists [S12]. Report the citing corpus; default to all validated snapshot works for coverage, with publication-type/notice sensitivity filters explicitly named.
 
-The numerator and denominator must use exactly the same attribution rule.
+Classify each edge using citing publication date as a citation-time proxy:
 
-For full-count country rate:
+- definitely before: citing-date interval ends before retraction-date interval begins;
+- definitely after: citing-date interval begins after retraction-date interval ends;
+- ambiguous: intervals overlap, including same-day dates at day precision;
+- undated: a required date is absent/unusable.
 
-`country-linked retracted works / country-linked eligible works`
+Default `post_retraction_citation_ratio = after / (before + after)`, explicitly a ratio among temporally classifiable observed citation edges. Publish ambiguous and undated counts separately. Do not divide by `cited_by_count` and assume it exactly equals the rebuilt edge count; audit differences. No dated edges gives null, not zero.
 
-with each work counted at most once per country in both numerator and denominator.
+For 1/3/5-year persistence, require complete post-event follow-up and use per-work calendar windows. Publish both total edges and mean/median per eligible target, plus eligible-target counts. Do not average ratios with inconsistent weights or compare unaligned windows. Separate before/after describing patterns from causal claims about retraction's effect.
 
-### 6.5 Labels
+A citation may criticize or report the retraction. No citation sentiment or endorsement claim is allowed without separately validated context analysis. Self-citation exclusion is optional and depends on valid author IDs; uncertain identity is not a confirmed non-self-citation.
 
-Prefer:
+## 13. Concentration, bursts, and advanced inference
 
-- `Country affiliation distribution`
-- `Countries associated with retracted works`
-- `Country-linked retraction rate`
+For entity weights `x_g`, association concentration uses `s_g = x_g / Σ_h x_h`; specify full or fractional weights and whether entities with zero retracted works are included. Compute Top-k shares, Lorenz/Gini, or HHI over the full eligible entity distribution, **not only the exported Top-N rows**. Unknown placeholders are coverage, not a real institution/author.
 
-Avoid ambiguous labels such as `Retractions by country` unless the methodology is shown immediately beside the chart.
+Unique-paper coverage of Top-k entities is a separate statistic: `|union of linked paper IDs| / |P|`. Shared authorship means summing author counts is not this union. An entity's presence in a co-retraction network is not proof of collaboration in misconduct.
 
----
+Burst detection requires actual RW event dates, not OA update dates. Pre-register window, historical baseline, minimum count, threshold, and handling of missing months. A recommended first implementation is a descriptive monthly control chart with flagged windows requiring review; do not infer paper-mill causes from a spike alone. External event annotations need an explicit source and event date.
 
-## 7. Institution attribution
+Survival analysis, adjusted comparisons, matched controls, and multivariable models are later research modules. They require non-retracted eligible works, censoring, selection-bias discussion, and a separately reviewed analysis protocol. A convenience API flag and a case-only lag distribution do not identify a causal risk model.
 
-Use OpenAlex institution IDs for standardized institution analysis.
+## 14. Offline pipeline and resumability
 
-For each work:
+Planned stages, not existing commands:
 
-- collect distinct institution IDs from authorships;
-- deduplicate repeated affiliation of multiple authors to the same institution;
-- preserve institution type and country where available;
-- distinguish known institutions from unresolved/missing affiliation.
+1. `validate_snapshot`: freeze manifest and schema/capability report.
+2. `canonicalize_works`: source accounting, identity checks, corpus flags, minimal projected columns.
+3. `canonicalize_rw`: originals, notices, role evidence, dates and reason mapping.
+4. `reconcile_identifiers`: join against all relevant OA records; adjudication queue.
+5. `build_eligible_corpus`: D, A0, A1, C, C_D and dimension bridges.
+6. `aggregate_denominators`: publication cohorts and supported dimension slices.
+7. `aggregate_descriptive`: counts, proportions, distributions, missingness, concentration.
+8. `scan_incoming_citations`: optional separate pass with target-ID filtering.
+9. `build_report`: compact chart payloads, deterministic observations, provenance.
+10. `validate_and_publish`: numerical/schema/asset gates, then an atomic report release.
 
-Primary metrics:
+Use a local analytical engine capable of Parquet projection and disk spill; DuckDB is a candidate, not a required untested performance promise. Benchmark a pinned subset, record runtime/memory/disk, and choose partition work units. No full Python list of all works or quadratic join is acceptable.
 
-- retracted-work full count;
-- fractional count;
-- total eligible works;
-- cohort retraction rate;
-- median retraction lag where RW match exists;
-- topic/field distribution;
-- citation impact of retracted works;
-- repeat-retraction author associations.
+Checkpoint by input manifest hash, file key, transformation version, and config hash. Only a matching checkpoint is reusable. Use temporary outputs and atomic rename; interrupted stages must not replace the last successful report. Full source scans happen locally, not during a normal Cloudflare build or weekly RW refresh.
 
-Do not interpret raw count as institutional quality or misconduct prevalence. Institution size, field mix, publication era, database coverage, and affiliation quality are confounders.
+Prefer raw snapshot storage outside the repository via `OPENALEX_SNAPSHOT_DIR`. If an in-repo local path is later supported, add an explicit ignore rule before using it; the previous recommendation of `data/local/` did not itself make that path ignored. Intermediate full records remain private/local and never become site assets.
 
----
+## 15. Report data contract and deployment migration
 
-## 8. Author dimensions
+Current production uses schema v2, `public/data/report.json`, `public/data/samples.json`, a maximum of 36 samples, and a 2 MiB combined data budget. `scripts/check-public-data.mjs` hard-codes that allowlist and RW-only schema assertions. None of those guards is changed by this documentation commit.
 
-OpenAlex author IDs allow analyses that RW raw names alone cannot support reliably.
+The implementation must introduce a reviewed v3 contract and exact path allowlist before adding report chunks. See the companion design for the proposed manifest/section layout. Retain v2 read support and the existing RW report. Test v2 and v3 independently; do not merely delete the old assertions or permit arbitrary JSON under `public/`.
 
-Derived measures:
+Keep all published aggregate JSON and display samples combined within **2 MiB**, including coexistence with v2. Sample limit remains **36 across the deployed site**, not 36 per page. If the proposed views exceed the budget, reduce dimensions/presets or export precision; any budget change needs a separate explicit decision. Do not commit raw CSV, Parquet, JSONL, Gzip partitions, local databases, or full per-paper/author-network exports. User-generated CSV exports contain only already published aggregate cells and their metadata.
 
-- unique retracted works per author;
-- total eligible works per author;
-- retraction share/rate where denominator quality is sufficient;
-- first publication year;
-- career age at publication/retraction;
-- citation impact;
-- coauthor network;
-- number of institutions/countries associated with retracted works.
+Every chart payload needs: chart ID, release ID, population key, metric ID, corpus/type scope, attribution policy, filters, both source dates/cutoff, numerator/denominator, missingness, status, and methods version. Source changes must not silently alter the chart's meaning.
 
-### Repeat-retraction authors
+## 16. Provenance and report status
 
-Recommended bands:
-
-- 1
-- 2
-- 3–5
-- 6–10
-- >10 retracted works
-
-Also calculate concentration measures:
-
-- Top 1% share
-- Top 5% share
-- Top 10% share
-- Gini coefficient
-- optional HHI
-
-The site must state that association with a retracted paper does not establish responsibility for the retraction.
-
----
-
-## 9. Discipline and topic dimensions
-
-Keep the following systems separate:
-
-### RW Subject
-
-Use only for RW-defined subject analyses.
-
-### OpenAlex hierarchy
-
-Use the current four-level OpenAlex topic hierarchy:
-
-- Domain
-- Field
-- Subfield
-- Topic
-
-For each level support:
-
-- retracted-work count;
-- share of retractions;
-- denominator work count;
-- cohort retraction rate;
-- annual trend;
-- growth rate for sufficiently large baselines;
-- retraction lag where matched to RW;
-- reason composition where matched to RW;
-- citation impact;
-- country/institution composition.
-
-### Primary vs multi-topic attribution
-
-OpenAlex works can have a primary topic and multiple assigned topics. Publish two analytically distinct modes where useful:
-
-1. **Primary-topic mode** — one primary classification path per work; useful for mutually interpretable totals.
-2. **Any-topic mode** — a work contributes to every qualifying assigned topic; useful for topical association analysis.
-
-Never merge these modes without labeling the counting rule.
-
-### Concepts
-
-If Concepts are retained from the snapshot for historical/lookup analysis, label them as legacy/separate vocabulary. Do not present Concept and Topic as equivalent levels in one hierarchy.
-
----
-
-## 10. Time dimensions
-
-### Publication time
-
-At minimum:
-
-- publication year;
-- publication month where reliable;
-- publication cohort.
-
-### Retraction time
-
-RW supplies the principal retraction-event date for the joined analysis.
-
-OpenAlex `is_retracted` indicates status in the snapshot but should not be treated as a retraction-event date unless a documented date field/source supports it.
-
-### Retraction lag
-
-`lag_days = retraction_date - publication_date`
-
-Publish:
-
-- P25
-- median
-- P75
-- P90
-- distribution bands
-
-Suggested bands:
-
-- <1 year
-- 1–2 years
-- 2–5 years
-- 5–10 years
-- >10 years
-
-Cross with:
-
-- field/subfield/topic;
-- reason;
-- country;
-- institution;
-- source/publisher;
-- work type.
-
-Negative or impossible lags must be retained in a data-quality audit but excluded from valid-lag statistics.
-
----
-
-## 11. Retraction reasons
-
-Use RW reason labels as the event-level source.
-
-Keep both:
-
-- raw RW reason(s);
-- a documented higher-level reason taxonomy for visualization.
-
-Suggested high-level families (final mapping requires validation against the actual RW reason dictionary):
-
-- Research integrity
-- Publication/process integrity
-- Research error/quality
-- Ethics/compliance
-- Authorship/conflict
-- Legal/copyright
-- Publisher/editorial/administrative
-- Unknown/insufficient information
-
-Reasons are multi-label. Never force a single reason unless a specific analysis explicitly defines a priority rule.
-
-Key joined analyses:
-
-- Reason × Field
-- Reason × Subfield
-- Reason × Topic
-- Reason × Country
-- Reason × Source/Publisher
-- Reason × Retraction Lag
-- Reason × Citation Impact
-
----
-
-## 12. Source, journal, and publisher dimensions
-
-Use OpenAlex source/publisher IDs where possible; retain RW journal/publisher strings for audit/comparison.
-
-Metrics:
-
-- retracted-work count;
-- total eligible works;
-- cohort retraction rate;
-- annual retraction trend;
-- median lag;
-- reason composition;
-- topic/field composition;
-- citation distribution.
-
-### Retraction bursts
-
-Detect unusually concentrated retraction activity by source/publisher and time window.
-
-A burst is a descriptive anomaly, not evidence of misconduct. Detection should require:
-
-- minimum historical baseline;
-- minimum event count;
-- explicit algorithm/threshold;
-- sensitivity to mass retraction/cleanup events.
-
-Where RW records support it, annotate known bulk-retraction episodes separately from ordinary annual variation.
-
----
-
-## 13. Work characteristics
-
-Candidate OpenAlex dimensions:
-
-- work type;
-- language;
-- open-access status;
-- author count;
-- institution count;
-- country count;
-- citation count;
-- referenced-work count where useful;
-- source type;
-- publication venue;
-- topic breadth.
-
-Potential analyses:
-
-- retraction rate by work type;
-- retraction rate by OA status;
-- team size vs retraction rate;
-- domestic vs international collaboration;
-- mono-institution vs multi-institution work;
-- citation distribution of retracted vs eligible non-retracted works.
-
-These are observational comparisons. Do not infer that OA, team size, international collaboration, or a specific publication model causes retraction without an appropriate design.
-
----
-
-## 14. Collaboration dimensions
-
-Derived fields per work:
-
-- `author_count`
-- `institution_count`
-- `country_count`
-- `is_multi_institution`
-- `is_international`
-
-Suggested collaboration classes:
-
-- 1 country: domestic/single-country
-- 2 countries: bilateral
-- 3+ countries: multinational
-
-Possible analyses:
-
-- retraction rate by collaboration class;
-- field-adjusted descriptive comparison;
-- reason composition by collaboration class;
-- retraction lag by collaboration class.
-
-Network analyses may later include:
-
-- author ↔ author
-- institution ↔ institution
-- country ↔ country
-
-Only aggregate/network data suitable for publication should be exported to the website.
-
----
-
-## 15. Citation impact and post-retraction citation analysis
-
-### Static citation impact
-
-For OpenAlex retracted works:
-
-- citation count distribution;
-- median/percentiles;
-- highly cited retracted works;
-- field-normalized citation measures where available and methodologically appropriate.
-
-### Post-retraction citations
-
-This analysis requires a reliable RW retraction date plus citation edges and citing-work publication dates.
-
-For a matched retracted work:
-
-- citations before retraction;
-- citations after retraction;
-- citations within 1/3/5 years after retraction;
-- fraction of citations occurring after retraction.
-
-Define:
-
-`post_retraction_citation_ratio = post_retraction_citations / all dated citations`
-
-Caveats:
-
-- citation date is normally proxied by citing-work publication date;
-- publication date granularity varies;
-- a citation after retraction does not imply endorsement or ignorance of the retraction;
-- citations may explicitly discuss the retraction.
-
-This should be labeled **citation persistence after retraction**, not automatically “continued misinformation.”
-
----
-
-## 16. Concentration analysis
-
-Measure whether observed retractions are diffuse or concentrated across:
-
-- authors;
-- institutions;
-- countries;
-- sources/journals;
-- publishers;
-- fields/topics.
-
-Recommended measures:
-
-- top-k share;
-- Top 1/5/10% share;
-- Lorenz curve;
-- Gini coefficient;
-- optional HHI.
-
-Always publish the relevant population and counting method beside the concentration statistic.
-
----
-
-## 17. Cross-dataset coverage analysis
-
-Create a reconciliation table with at least:
-
-- RW unique works;
-- RW works with DOI;
-- RW DOI matched to OpenAlex;
-- RW DOI unmatched;
-- OpenAlex retracted works;
-- OpenAlex retracted works matched to RW;
-- OpenAlex retracted works not matched to RW;
-- DOI conflicts/duplicates;
-- merged/deleted OpenAlex ID cases.
-
-Suggested match-status values:
-
-- `exact_doi`
-- `pmid_match`
-- `other_exact_identifier`
-- `ambiguous`
-- `unmatched`
-- `merged_or_redirected`
-- `excluded_quality_issue`
-
-Do not use title fuzzy matching in the primary high-confidence corpus unless separately specified, validated, and assigned a confidence tier.
-
-### OpenAlex deletions / merges
-
-The snapshot pipeline must account for the snapshot's current deletion/merge semantics. Do not assume that an old OpenAlex work ID remains independently valid forever. Preserve source OpenAlex IDs and log redirected/deleted/merged states during reconciliation.
-
----
-
-## 18. Missing/unknown data
-
-Missingness is an analytical result, not merely a cleaning nuisance.
-
-For every major dimension publish coverage, for example:
-
-- % with DOI;
-- % matched to OpenAlex;
-- % with at least one resolved institution;
-- % with at least one resolved country;
-- % with topic classification;
-- % with valid publication date;
-- % with valid retraction date;
-- % with valid lag;
-- % with usable citation dates.
-
-Normalize placeholder strings only with explicit rules. Never merge genuine entities into `Unknown` because their names contain words such as “unknown” or “unavailable”.
-
----
-
-## 19. Recommended first-release analysis set
-
-The first snapshot-backed release should prioritize robust metrics rather than implementing every possible dimension.
-
-### Tier 1 — foundation
-
-1. OpenAlex retracted-work total and publication-year trend
-2. RW vs OpenAlex coverage/reconciliation
-3. Domain/Field/Subfield/Topic distribution
-4. country-affiliation distribution using documented full counting
-5. institution distribution using OpenAlex institution IDs
-6. author distribution/repeat-retraction counts
-7. source/publisher distribution
-8. work type and OA status
-9. denominator-backed cohort retraction rates for selected stable dimensions
-10. complete data-quality/coverage report
-
-### Tier 2 — joined analyses
-
-1. RW Reason × OpenAlex Field/Topic
-2. retraction lag × Field/Topic/Country
-3. citation impact of retracted works
-4. post-retraction citation persistence
-5. author/institution/source concentration
-6. domestic vs international collaboration
-7. source/publisher retraction-burst detection
-
-### Tier 3 — advanced research
-
-1. survival/right-censoring analysis
-2. matched controls or standardized comparisons
-3. temporal topic-shift analysis
-4. collaboration/retraction network analysis
-5. multivariable models controlling publication year, field, work type, country, and source characteristics
-
----
-
-## 20. Output artifacts
-
-Raw OpenAlex snapshot files must **not** be committed to the GitHub repository or shipped with the React site.
-
-Recommended local/intermediate outputs:
-
-```text
-data/local/openalex-snapshot/        # ignored; full snapshot
-data/processed/openalex/             # ignored; intermediate tables
-```
-
-Recommended publishable outputs:
-
-```text
-public/data/openalex-summary.json
-public/data/openalex-timeseries.json
-public/data/openalex-fields.json
-public/data/openalex-geography.json
-public/data/openalex-institutions.json
-public/data/openalex-authors.json
-public/data/openalex-sources.json
-public/data/openalex-coverage.json
-public/data/rw-openalex-joined-summary.json
-```
-
-Exact filenames may be consolidated later, but front-end assets must contain only aggregated/statistically necessary data and a small audited sample where needed for explanation.
-
-No raw Parquet, JSONL, Gzip snapshot partitions, or unrestricted paper-level exports should be committed for front-end deployment.
-
----
-
-## 21. Pipeline architecture
-
-Recommended stages:
-
-```text
-OpenAlex Parquet snapshot
-        |
-        v
-[01 snapshot validation]
-        |
-        v
-[02 canonical works extraction]
-        |
-        +----> denominator tables
-        |
-        v
-[03 retracted works extraction]
-        |
-        +----> OpenAlex-only analysis
-        |
-Retraction Watch
-        |
-        v
-[04 RW canonicalization]
-        |
-        v
-[05 identifier reconciliation]
-        |
-        v
-[06 joined analytical table]
-        |
-        +----> reason/topic/lag analyses
-        +----> post-retraction citation analysis
-        |
-        v
-[07 aggregation + QA]
-        |
-        v
-[08 publish compact JSON]
-        |
-        v
-React research site
-```
-
-DuckDB is a suitable default execution engine for Parquet exploration/aggregation because it can query snapshot partitions without importing the full dataset into a separate database. Production implementation may later use another engine if performance requires it.
-
----
-
-## 22. Snapshot provenance
-
-Every generated report must carry a manifest including at least:
+Manifest fields include:
 
 ```json
 {
-  "openalex_snapshot_date": null,
-  "openalex_format": "parquet",
-  "retraction_watch_snapshot_date": null,
-  "generated_at": null,
+  "schema_version": 3,
+  "release_id": null,
+  "status": "awaiting_snapshot",
+  "oa_snapshot_date": null,
+  "oa_source_prefix": "s3://openalex/data/parquet/",
+  "oa_manifest_sha256": null,
+  "rw_snapshot_date": null,
+  "rw_source_commit": null,
+  "rw_csv_sha256": null,
   "pipeline_commit": null,
-  "work_rows_scanned": null,
-  "retracted_work_count": null,
-  "rw_unique_work_count": null,
-  "rw_oa_exact_match_count": null
+  "config_sha256": null,
+  "schema_adapter_version": null,
+  "role_policy_version": null,
+  "reason_mapping_version": null,
+  "country_attribution_mode": "institution_country",
+  "corpus": "core",
+  "metric_observation_cutoff": null,
+  "generated_at": null,
+  "capabilities": {},
+  "source_accounting": {},
+  "quality_gates": {}
 }
 ```
 
-Add checksums or source manifest identifiers where practical.
+The nulls above are a schema illustration, not a generated result. Production ready reports must satisfy the required non-null fields. Waiting, unavailable, suppressed, and computed-zero states are different and must remain different in JSON and UI.
 
-A result without snapshot provenance is not considered reproducible and should not be promoted to the public research site.
+## 17. Required tests and publication gates
 
----
+The following are acceptance requirements, not tests claimed to have been implemented by this spec.
 
-## 23. Validation gates before publication
+| Test | Required outcome |
+|---|---|
+| Same paper, two notices | Original count 1; notice records and first-date policy retained |
+| Bulk notice, several papers | Do not merge originals by common notice DOI |
+| Notice typed article | Role screen catches known notice; residual uncertainty reported |
+| Duplicate DOI, multiple OA IDs | Ambiguous queue, no arbitrary ID selection |
+| Original exists, OA flag false | Included in C reconciliation, not A0 |
+| Deleted ID without mapping | No invented surviving ID |
+| Core vs expansion | Disjoint partitions with explicit unknown handling; comparable numerator/denominator |
+| Paper with CN, CN, US | Full counts CN=1, US=1; fractional CN=0.5, US=0.5 |
+| Country from raw address only | Present in authorship-country mode, absent from strict institution mode |
+| One known country plus missing affiliations | Not automatically classified as domestic |
+| Two topics sharing a parent | Parent full count deduplicated; hierarchy chart mode validated |
+| Select a single member | Fractional weight unchanged; no hidden reallocation |
+| Two authors on the same retracted paper | Association counts sum to 2; their union covers 1 paper |
+| No denominator / zero denominator | Rate null with reason; never zero or infinity |
+| Zero numerator, valid denominator | Valid zero, with n/N and ranking eligibility |
+| Undefined growth / partial year | Correct null/partial state, no improvement headline |
+| Coarse date / same-day citation | Ambiguous bin, not arbitrarily before or after |
+| Short post-retraction follow-up | Excluded from longer fixed-window metric, counted in exclusions |
+| Weighted metric / quantile reaggregation | No ordinary binomial CI for weights; no average of medians |
+| Changed filters | Chart, observations, provenance, exported data update together |
+| Raw asset or excessive samples | Build fails |
+| Incomplete generation | Last validated release survives unchanged |
 
-The first full run must pass these checks:
+Source accounting must reconcile input records, unique IDs, role exclusions, eligible cohorts, matched/unmatched rows, missing dates, and flag states. For each full-count rate assert numerator is a subset of denominator; for weighted rates additionally validate weight equality. Test quantitative invariants before visual acceptance.
 
-- snapshot manifest/files are readable;
-- no required entity directory is unexpectedly empty;
-- unique OpenAlex work ID assumption is checked;
-- `is_retracted` extraction count is reproducible;
-- DOI normalization tests pass;
-- matched DOI multiplicity is audited;
-- country full-count sums are allowed to exceed paper count and are labeled correctly;
-- fractional country weights sum to approximately one per work with known countries;
-- rate numerator and denominator use identical group-attribution rules;
-- publication/retraction negative lags are reported;
-- unknown institution/country/topic shares are published;
-- matched and unmatched RW/OA populations are reported;
-- current-year/incomplete-cohort comparisons are not treated as complete historical rates;
-- front-end build contains no raw snapshot files.
+## 18. Delivery phases and definition of done
 
----
+**S0 — review/design:** this document and the website report design only. No new counts or public conclusions.
 
-## 24. Front-end presentation principles
+**S1 — validated descriptive report:** snapshot/source gate; document-role screening; A0/B/C reconciliation; publication and RW event trends; classification, affiliation, entity, reason, lag, and quality panels with exact population labels. Every visible principal chart includes numerical observation and interpretation boundaries. Unsupported modules remain unavailable, not filled with samples.
 
-Every major visualization should expose:
+**S2 — denominator and joined report:** D validated; at least one documented article-cohort proportion; rate-size comparisons; Reason × Topic; observed collaboration; complete concentration calculations. Review data coverage and the meaning of each denominator before promotion.
 
-1. **Question** — what is being investigated?
-2. **Metric** — count, share, rate, lag, citation impact, etc.
-3. **Population** — OA retracted, RW, joined, or OA denominator cohort.
-4. **Counting rule** — unique, full count, fractional, primary-topic, any-topic, etc.
-5. **Observation** — a generated factual statement from the plotted statistics.
-6. **Interpretation limits** — what the chart does not establish.
-7. **Data coverage** — missing/unknown/matched percentage when relevant.
+**S3 — citation and advanced modules:** incoming-edge pipeline, fixed-window persistence and optional burst/network research. A lack of citation readiness must not be disguised as zero citations or prevent a correctly labeled S1 release.
 
-Interactive toggles should not silently change statistical meaning. A switch between full and fractional counting, or count and rate, must update the chart title, axis label, tooltip, and methodology note together.
+The phase is done only when the promised ready capabilities, reproducible manifests, numerical gates, compact deployment, and the companion design's narrative/interaction/accessibility tests pass. Do not claim all later modules complete merely because S1 can be deployed.
 
----
+## 19. Official references and review context
 
-## 25. Non-goals / prohibited interpretations
+References checked on 2026-09-10. Upstream behavior can change; the actual downloaded release and recorded adapter remain authoritative. These are sources for factual field/format definitions, not endorsements of this project's proposed statistical policies.
 
-This project must not present:
+- [S1 — OpenAlex snapshot format and corpus differences](https://help.openalex.org/access/snapshot/)
+- [S2 — OpenAlex work attributes, including retraction provenance](https://help.openalex.org/data/works/attributes/)
+- [S3 — OpenAlex authorships, countries and completeness](https://help.openalex.org/data/authorships/)
+- [S4 — Crossref Retraction Watch access and coverage](https://www.crossref.org/documentation/retrieve-metadata/retraction-watch/)
+- [S5 — RW field definitions](https://retractionwatch.com/retraction-watch-database-user-guide/retraction-watch-database-user-guide-appendix-a-fields/)
+- [S6 — OpenAlex synchronization, deletions and merges](https://help.openalex.org/access/sync/)
+- [S7 — OpenAlex work-type vocabulary](https://help.openalex.org/data/work-types/)
+- [S8 — OpenAlex counting and cached entity summaries](https://help.openalex.org/how-to/counting/)
+- [S9 — OpenAlex author identity and derived profiles](https://help.openalex.org/data/authors/)
+- [S10 — OpenAlex source attributes](https://help.openalex.org/data/sources/attributes/)
+- [S11 — OpenAlex legacy Concepts](https://help.openalex.org/data/concepts/)
+- [S12 — OpenAlex citation graph](https://help.openalex.org/data/works/citations/)
 
-- raw retraction count as a ranking of research integrity;
-- author association with a retracted paper as proof of misconduct;
-- institution/country association as responsibility for the retraction;
-- `share of global retractions` as `retraction rate`;
-- an OpenAlex Topic as equivalent to an RW Subject;
-- a limited matched sample as representative of all retractions without coverage evidence;
-- post-retraction citation as proof that citing authors ignored the retraction;
-- incomplete recent cohorts as directly comparable with mature historical cohorts;
-- observational associations as causal effects.
-
----
-
-## 26. Definition of done for this phase
-
-The snapshot-backed analysis phase is considered complete when:
-
-1. the full OpenAlex Parquet snapshot is validated and provenance is recorded;
-2. OpenAlex retracted works are extracted reproducibly;
-3. the denominator corpus is defined and tested;
-4. RW ↔ OA reconciliation coverage is published;
-5. country, institution, author, source, field/topic, work-type and OA-status dimensions are generated;
-6. at least one valid denominator-backed retraction-rate analysis is published;
-7. missingness/coverage statistics accompany the results;
-8. aggregate JSON is generated for the React site without raw snapshot data;
-9. methodology notes explain all counting/rate rules;
-10. automated tests prevent regression in the key statistical definitions.
-
-Only after these gates pass should more speculative/advanced analyses be promoted into the main Observatory navigation.
+Repository review baseline: `4513bd2b6ffe01676788da517dd3e73340aa6efb`. Inspected the previous snapshot spec, README, current React report components, public-data guard, and stored OA audit. Historical v2 statistics and their methodology are not re-estimated by this revision.
