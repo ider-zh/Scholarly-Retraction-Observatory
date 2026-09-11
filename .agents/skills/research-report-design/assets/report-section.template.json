@@ -1,0 +1,41 @@
+{
+  "_note": "Illustrative presentation-layer contract, not a replacement for the existing published schema. No values or findings have been computed here.",
+  "section_id": "example-section",
+  "status": "not_computed",
+  "reader_question": "在相同范围内，两个指标如何不同？",
+  "evidence": {
+    "release_id": null,
+    "aggregate_path": null,
+    "chart_id": null,
+    "slice_id": null,
+    "population_key": null,
+    "metric_id": null,
+    "scope": {},
+    "source_role": null,
+    "oa_snapshot_date": null,
+    "rw_snapshot_date": null,
+    "observation_cutoff": null,
+    "numerator": null,
+    "denominator": null,
+    "unit": null
+  },
+  "narrative": {
+    "headline": null,
+    "observation": null,
+    "interpretation": null,
+    "visible_boundary": null,
+    "claim_bindings": []
+  },
+  "figure": {
+    "kind": null,
+    "functional_subtitle": null,
+    "annotations": [],
+    "accessible_summary": null,
+    "table_available": false
+  },
+  "methods": {
+    "version": null,
+    "details_anchor": null,
+    "limitations": []
+  }
+}

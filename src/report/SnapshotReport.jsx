@@ -3,6 +3,7 @@ import {validateManifest, validateChunk} from './schema.js';
 import ReportGuide from './ReportGuide.jsx';
 import DisciplineExplorer from './DisciplineExplorer.jsx';
 import InteractiveChart from './InteractiveChart.jsx';
+import OverviewReport from './OverviewReport.jsx';
 import {plotKind} from './chartGeometry.js';
 import {SOURCE_NAMES, SOURCE_ORDER, sourceProfile, filterCharts, parseSources, reportHref} from './sources.js';
 import {number, UNITS, POPULATIONS, WORK_TYPES, chartName, variantName, rowLabel, selectChart, chartMethod, insightText} from './reader.js';
@@ -173,6 +174,7 @@ export default function SnapshotReport() {
       window.scrollTo({top: 0, behavior: 'instant'});
     }
   }, [route.page, route.slice, route.sources.join(','), current.charts]);
+  if (route.page === 'overview') return <OverviewReport route={route} manifest={manifest} charts={current.charts} error={manifestError || current.error} pages={PAGES} navigate={navigate} changeSources={changeSources} headingRef={headingRef} analysisRef={analysisRef} ChartCard={ChartCard} Export={Export}/>;
   return <div className="snapshot-app"><header className="snapshot-header"><a href="#">← 当前 RW 报告</a><span>Scholarly Retraction Observatory</span><a href={reportHref('quality', route.sources)}>数据与方法</a></header><div className="snapshot-layout"><nav aria-label="快照报告章节"><h2>快照联合研究报告</h2>{Object.entries(PAGES).map(([key, label]) => <a key={key} href={reportHref(key, route.sources)} aria-current={route.page === key ? 'page' : undefined}>{label}</a>)}</nav><main>
     <p className="snapshot-eyebrow">OPENALEX × RETRACTION WATCH</p><h1 ref={headingRef} tabIndex={-1}>{PAGES[route.page]}</h1>
     <section className="snapshot-source-picker" aria-label="报告数据集选择"><h2>先选择分析的数据集</h2><fieldset><legend>可单选或多选；至少保留一个数据集</legend>{SOURCE_ORDER.map(source => <label key={source}><input type="checkbox" checked={route.sources.includes(source)} disabled={route.sources.length === 1 && route.sources.includes(source)} onChange={() => changeSources(source)}/>{SOURCE_NAMES[source]}</label>)}</fieldset><p><strong>当前选择：{route.sources.map(source => SOURCE_NAMES[source]).join(' + ') || '请重新选择'}</strong>。{route.sources.length === 2 ? '同时展示单库分析、匹配子集和跨库核对；每张图单独标注口径。' : '仅列出采用该库研究对象与字段的分析，依赖两库匹配的图表已隐藏。'}</p><p className="snapshot-source-distinction"><strong>联合分析 ≠ 两库并集。</strong>现有联合图表以匹配子集或跨库核对为主。去重并集需要统一身份、筛选与字段覆盖，本版没有发布其统计；不能把两库数量相加。OpenAlex 标记与身份筛选也有 RW 来源依赖。</p>{current.charts && <p className="snapshot-caption">{showExplorer ? '学科树按所选来源列出可用分类与研究总体；另有 '+visibleCharts.length+' 项原有专题分析。' : '本章符合选择的分析：'+visibleCharts.length+' / '+current.charts.length+'。'}切换数据集不会更改统计数值或分母。</p>}</section>
