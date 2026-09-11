@@ -2,7 +2,24 @@
 
 Version: 2.0 · Reviewed: 2026-09-10
 
-**Status: design only; blocked on completion and validation of the intended OpenAlex snapshot.** This revision does not run a new analysis, change published statistics, or implement the website.
+**Status: implementation in progress.** The original S0 design has advanced to local source validation and analysis. Published RW statistics remain separate.
+
+Implementation progress (2026-09-11): the retrospective source gate, S1/S2 report,
+incoming-edge scan, fixed-window citation summaries, versioned reason families,
+current publisher rollups and supplementary denominators are implemented.
+Capabilities are promoted only after numerical and publication gates pass; see
+the [runbook](OPENALEX_SNAPSHOT_RUNBOOK.md) and generated manifest. Optional
+adjusted/causal models and historical ownership research are not implied by S3.
+The normative requirements below remain in force.
+
+Source acceptance amendment (2026-09-11, explicitly approved by the project owner):
+the existing AWS download may use **retrospective-v1** validation because a
+pre-transfer manifest and retrieval log were not retained. This exception requires
+a frozen local manifest, agreement with the current AWS manifest after validation,
+complete listed-file size/footer/row/schema checks, and canonical ID/flag checks.
+Record historical transfer provenance as missing; do not invent retrieval dates
+or claim an atomic historical transfer. All other source and publication gates
+remain in force. `strict-v1` remains available for future documented transfers.
 
 Companion: [Website Report Design](WEBSITE_REPORT_DESIGN.md). Existing production methodology: [RESEARCH.md](RESEARCH.md).
 

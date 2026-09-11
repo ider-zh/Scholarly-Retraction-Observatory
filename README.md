@@ -17,19 +17,25 @@ Python 离线处理（原始 CSV / OpenAlex 缓存，仅本地或 Actions）
 - `src/`：React 页面、图表组件和样式。
 - `pipeline/build.py`：获取、清洗、匹配；完整记录保存在被 Git 忽略的 `data/processed/`。
 - `pipeline/aggregate.py`：离线统计与有数值依据的观察文本生成。
+- `pipeline/validate_snapshot.py`：全量 OpenAlex Parquet 的 manifest、schema、ID 与来源校验；[运行说明](docs/OPENALEX_SNAPSHOT_RUNBOOK.md)。该阶段不替换当前 RW 报告。
 - `public/data/report.json`：聚合统计；不含完整论文记录。
 - `public/data/samples.json`：最多 36 条简化展示样本；不用于统计推断。
 - `data/reference/openalex-audit.json`：带日期的独立数据源数量核查，不作为主统计总体。
 - `docs/RESEARCH.md`：研究范围、公式、方法和限制。
-- `scripts/check-public-data.mjs`：发布检查，拒绝 Gzip、CSV、Parquet、NDJSON 等数据文件；两份 JSON 总体积限制为 2 MiB。
+- `scripts/check-public-data.mjs`：发布检查，拒绝 Gzip、CSV、Parquet、NDJSON 等数据文件；v2 与 v3 全部公开 JSON 合计限制为 2 MiB。
 - `dist/`：Vite 生成的可发布产物，不提交 Git。
 
-## 下一阶段：快照分析与研究报告设计
+## OpenAlex 快照联合研究报告
 
-以下文档是下一阶段规格，**不是已完成的全量分析或已实现的网站功能**。完整 OpenAlex 快照下载并通过校验后，才启动新分析；当前 RW-only 统计和小规模 DOI 匹配的使用边界保持不变。
+独立 v3 流水线与报告页面已实现，入口为 `#/snapshot/overview`，保留当前 RW-only 报告。新统计来自完整 Parquet 快照的本地扫描，不能使用旧的小规模 DOI 调试子集替代。来源、匹配、角色筛选、分母和发布体积门槛通过后才安装聚合资产；具体已计算能力以 v3 manifest 为准。引用事件时间等未完成模块显示“未计算”。
+
+后续交付已加入全库 incoming 引用边、C2–C4 日历窗口统计、版本化原因族、当前出版商/集团归属及补充分母。历史所有权、作者职业轨迹和调整/因果模型仍是独立可选研究，不从这些描述统计推断。
 
 - [OpenAlex Snapshot Analysis Spec v2](docs/OPENALEX_SNAPSHOT_ANALYSIS_SPEC.md)：区分标记记录与原论文候选、RW/OA 来源依赖、core/expansion 口径、国家归属、分子分母、匹配与日期、引用边、质量门槛和发布契约。
 - [Website Report Design](docs/WEBSITE_REPORT_DESIGN.md)：9 个报告章节、29 个独立分析图表规格、证据关联的数据解读、筛选联动、静态聚合数据契约、视觉与可访问性验收。
+- [快照运行说明](docs/OPENALEX_SNAPSHOT_RUNBOOK.md)：源校验、固定 RW 提交、并行分析、内存缓存、分母扫描、v3 聚合与原子发布。
+- [首次分析交付记录](docs/OPENALEX_SNAPSHOT_VALIDATION_2026-09-11.md)：完整扫描数量、回溯接受政策、实际发布结果与未计算能力。
+- [后续核心分析交付](docs/OPENALEX_SNAPSHOT_S3_DELIVERY_2026-09-11.md)：入边引用、固定随访、原因族、出版商和补充分母，以及可选研究边界。
 
 新报告须保留旧报告入口，仅发布经过校验的聚合数据。新增 v3 JSON 文件前必须同步评审 schema 与精确资产 allowlist，不能删除原始数据禁入规则；规划继续保持全站聚合数据与样本合计 2 MiB、展示样本最多 36 条的预算。
 
@@ -43,6 +49,7 @@ npm run dev
 npm run build
 npm run preview
 python -m unittest discover -s tests
+node --test tests/snapshot-schema.test.mjs
 ```
 
 普通前端构建仅使用仓库内已经生成的统计数据，不需要 Python、OpenAlex 密钥或重新下载数据。前端只对聚合后的时间序列进行展示筛选、后向三年均值和格式化，不进行论文级全库扫描。

@@ -1,0 +1,16 @@
+{
+  "version": "rw-monthly-descriptive-control-v1",
+  "defined_at": "2026-09-11",
+  "population": "B_unique_rw_originals",
+  "event": "first_valid_recorded_retraction_date",
+  "display_start": "2021-01",
+  "window_months": 1,
+  "baseline_previous_complete_months": 24,
+  "minimum_window_count": 20,
+  "threshold": "max(20, baseline_mean + 3 * sqrt(baseline_mean))",
+  "flag_rule": "count > threshold",
+  "absent_months": "zero_recorded_events_in_frozen_rw_input_not_verified_historical_absence",
+  "partial_month": "show_count_but_do_not_flag",
+  "interpretation": "descriptive_review_flag_not_p_value_or_causal_diagnosis",
+  "registration_status": "fixed_before_this_control_chart_computation_not_prospective_study_preregistration"
+}

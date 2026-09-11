@@ -1,6 +1,8 @@
 # Website Report Design — 撤稿研究网站报告设计
 
-版本：1.0 · 日期：2026-09-10 · 状态：设计规格，尚未实现
+版本：1.0 · 日期：2026-09-10 · 状态：设计规格；2026-09-11 起分阶段实现
+
+实现进度：已加入独立 v3 页面、分章校验加载、有限切片、聚合导出和离线统计流水线。后续实现加入版本化原因族、当前出版商归属、incoming 引用事件时间及固定日历随访；具体已计算能力以生成的 manifest 为准，不能把本设计目录当作全部完成声明。每章默认展示最多四张不同分析主图，更多切片折叠或通过下拉框直达。参见[运行说明](OPENALEX_SNAPSHOT_RUNBOOK.md)。
 
 关联规范：[OpenAlex Snapshot Analysis Spec v2](OPENALEX_SNAPSHOT_ANALYSIS_SPEC.md)；当前线上统计口径：[RESEARCH.md](RESEARCH.md)。
 

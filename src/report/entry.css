@@ -1,0 +1,6 @@
+.snapshot-report-link{display:block;position:relative;z-index:30;text-align:center;background:#173d4d;color:#fff;padding:10px 18px;font:14px/1.5 system-ui,sans-serif;text-decoration:none}.snapshot-report-link:focus-visible{outline:3px solid #e5a425;outline-offset:-3px}
+.snapshot-populations{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin:24px 0}.snapshot-populations>div{padding:20px;border:1px solid #dce5eb;border-radius:6px;background:#f8fbfc}.snapshot-populations span{font-size:13px;display:block}.snapshot-populations strong{font-size:27px;display:block;margin:10px 0;font-variant-numeric:tabular-nums}.snapshot-populations small{color:#526777;font-size:11px}
+.snapshot-layout>main{width:100%;min-width:0}.snapshot-card{min-width:0}.snapshot-layout{grid-template-columns:220px minmax(0,1fr)}@media(max-width:900px){.snapshot-layout{grid-template-columns:minmax(0,1fr)}}
+.snapshot-app label{color:#334b5f;font-size:14px}
+.snapshot-app .snapshot-table th{color:#192e40}
+.snapshot-card p,.snapshot-card h2{overflow-wrap:anywhere}
