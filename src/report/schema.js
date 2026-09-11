@@ -1,3 +1,5 @@
+import {validateExplorer} from './explorerSchema.js';
+
 export const SECTIONS = ['overview', 'time', 'fields', 'reasons', 'geography', 'entities', 'publishing', 'citations', 'quality'];
 export const SNAPSHOT_PATHS = ['data/snapshot/manifest.json', ...SECTIONS.map(section => `data/snapshot/${section}.json`)];
 const STATES = new Set(['ready', 'not_computed', 'missing_data', 'missing_denominator', 'insufficient_followup', 'small_base']);
@@ -28,9 +30,25 @@ export function validateManifest(manifest) {
   inspect(manifest);
   return manifest;
 }
+export function decodeChartRows(chart) {
+  if (chart.row_columns === undefined && chart.row_values === undefined) return chart;
+  requireValue(chart.rows === undefined && Array.isArray(chart.row_columns) && Array.isArray(chart.row_values), 'Ambiguous aggregate row encoding');
+  const columns = chart.row_columns;
+  requireValue(columns.length > 0 && columns.every(column => typeof column === 'string' && !forbidden.has(column) && !['__proto__', 'constructor', 'prototype'].includes(column)) && new Set(columns).size === columns.length, 'Invalid aggregate columns');
+  const rows = chart.row_values.map(values => {
+    requireValue(Array.isArray(values) && values.length === columns.length, 'Ragged aggregate row');
+    return Object.fromEntries(columns.map((column, index) => [column, values[index]]));
+  });
+  const {row_columns, row_values, ...metadata} = chart;
+  return {...metadata, rows};
+}
+
 export function validateChunk(chunk, manifest, section) {
   requireValue(chunk?.schema_version === 3 && chunk.release_id === manifest.release_id && chunk.section === section, 'Mixed or invalid snapshot release');
   requireValue(Array.isArray(chunk.charts), 'Missing chart collection');
+  chunk = {...chunk, charts: chunk.charts.map(decodeChartRows)};
+  if (section === 'fields' && manifest.capabilities?.discipline_explorer) validateExplorer(chunk.discipline_explorer, manifest);
+  else requireValue(chunk.discipline_explorer === undefined, 'Undeclared discipline explorer');
   const seen = new Set();
   for (const chart of chunk.charts) {
     const key = `${chart.chart_id}/${chart.slice_id}`;

@@ -31,7 +31,7 @@ export default function InteractiveChart({chart}) {
   const horizontal = row => kind === 'interval' ? left + (right - left) * row.value / maximumY : left + (right - left) * (row.position - minimumX) / (maximumX - minimumX || 1);
   const vertical = row => kind === 'interval' ? top + 24 + visible.indexOf(row) * 42 : bottom - (bottom - top) * (row.value - minimumY) / (maximumY - minimumY);
   const scaleY = value => bottom - (bottom - top) * (value - minimumY) / (maximumY - minimumY);
-  const tickLabel = value => kind === 'scatter' ? number(Math.round(10 ** value)) : chart.chart_id === 'C1' ? number(Math.round(Math.expm1(value))) : kind === 'control' ? rows[Math.round(value)]?.label : ['T1', 'T3'].includes(chart.chart_id) ? String(value) : number(value);
+  const tickLabel = value => kind === 'scatter' ? number(Math.round(10 ** value)) : chart.chart_id === 'C1' ? number(Math.round(Math.expm1(value))) : kind === 'control' ? rows[Math.round(value)]?.label : ['T1', 'T3', 'discipline-time'].includes(chart.chart_id) ? String(value) : number(value);
   const unit = UNITS[visible[0].unit] || visible[0].unit;
   const selectPoint = row => {setHovered(row.id); setPinned(current => current === row.id ? null : row.id);};
   function move(event) {

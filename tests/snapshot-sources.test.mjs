@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import {readFileSync, readdirSync} from 'node:fs';
 import {sourceProfile, filterCharts, parseSources, reportHref} from '../src/report/sources.js';
 import {plotKind, plotRows, lineSegments} from '../src/report/chartGeometry.js';
+import {decodeChartRows} from '../src/report/schema.js';
 
-const charts = readdirSync('public/data/snapshot').filter(name => name !== 'manifest.json').flatMap(name => JSON.parse(readFileSync(`public/data/snapshot/${name}`)).charts);
+const charts = readdirSync('public/data/snapshot').filter(name => name !== 'manifest.json').flatMap(name => JSON.parse(readFileSync(`public/data/snapshot/${name}`)).charts.map(decodeChartRows));
 
 test('all published analyses have explicit source scopes; multiple sources never imply union', () => {
   assert.equal(charts.length, 109);

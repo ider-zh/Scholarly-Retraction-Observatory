@@ -173,15 +173,23 @@ class SnapshotAnalysisTests(unittest.TestCase):
         concept_scan(run, workers=1, threads=1, memory_limit='512MB')
         with patch('pipeline.snapshot_concepts.duckdb.connect', side_effect=AssertionError('Completed concept shards must be reused')):
             concept_scan(run, workers=1, threads=1, memory_limit='512MB')
+        from pipeline.snapshot_taxonomy import run as taxonomy_scan
+        taxonomy_scan(run, workers=1, threads=1, memory_limit='512MB')
+        with patch('pipeline.snapshot_taxonomy.duckdb.connect', side_effect=AssertionError('Completed taxonomy shards must be reused')):
+            taxonomy_scan(run, workers=1, threads=1, memory_limit='512MB')
         report = build(run)
         updated_manifest = json.loads((report / 'manifest.json').read_text())
         self.assertTrue(updated_manifest['capabilities']['incoming_citations'])
         self.assertTrue(updated_manifest['capabilities']['fixed_publication_followup'])
         self.assertTrue(updated_manifest['capabilities']['legacy_concepts'])
+        self.assertTrue(updated_manifest['capabilities']['discipline_explorer'])
         fields = json.loads((report / 'fields.json').read_text())
         concepts = next(chart for chart in fields['charts'] if chart['slice_id'] == 'C-concepts-level-0')
         self.assertEqual(concepts['rows'][0]['value'], 1)
         self.assertEqual(concepts['concept_coverage']['known_works'], 1)
+        explorer = fields['discipline_explorer']
+        self.assertEqual([taxonomy['id'] for taxonomy in explorer['taxonomies']], ['subjects', 'topics', 'concepts'])
+        self.assertEqual(explorer['taxonomies'][1]['denominator'][0], 1)
         entities = json.loads((report / 'entities.json').read_text())
         authors = next(chart for chart in entities['charts'] if chart['chart_id'] == 'author-top' and chart['population_key'] == 'C')
         self.assertEqual(authors['rows'][0]['label'], 'Test Author')

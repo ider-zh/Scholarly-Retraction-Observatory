@@ -1,0 +1,951 @@
+{
+  "version": "official-concept-tagger-v3-2023-11-06",
+  "retrieved_at": "2026-09-11T03:08:59.194347+00:00",
+  "documentation": "https://github.com/ourresearch/openalex-concept-tagging/blob/49fd88916c80d75e7e889533b0458fa8a58bd730/V3/README.md",
+  "source_snapshot_manifest_sha256": "10c1785b4a6f9757823fc6dd005a052716e2c510ea751659cab4bcfba4c35e2a",
+  "sources": [
+    {
+      "url": "https://openalex-concept-tagger-model-files.s3.amazonaws.com/V3/ancestor_chains.pkl",
+      "sha256": "034683967e1a7047cb326ab8d75236a9a1b30531561511fbec4847cd36f6b39e",
+      "bytes": 12603399
+    },
+    {
+      "url": "https://openalex-concept-tagger-model-files.s3.amazonaws.com/V3/tag_id_vocab.pkl",
+      "sha256": "5e0628dbe8e0f4bd225bde932fc6a569ce7fa4f035ede21b38d43527608a72ec",
+      "bytes": 589791
+    }
+  ],
+  "parents": {
+    "https://openalex.org/C1965285": [
+      "https://openalex.org/C127313418"
+    ],
+    "https://openalex.org/C36289849": [
+      "https://openalex.org/C144024400"
+    ],
+    "https://openalex.org/C164705383": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C98274493": [
+      "https://openalex.org/C71924100",
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C153294291": [
+      "https://openalex.org/C121332964",
+      "https://openalex.org/C205649164"
+    ],
+    "https://openalex.org/C39549134": [
+      "https://openalex.org/C17744445"
+    ],
+    "https://openalex.org/C74650414": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C110354214": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C1276947": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C42360764": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C505870484": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C54286561": [
+      "https://openalex.org/C39432304",
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C2524010": [
+      "https://openalex.org/C33923547"
+    ],
+    "https://openalex.org/C17409809": [
+      "https://openalex.org/C127313418"
+    ],
+    "https://openalex.org/C187736073": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C111472728": [
+      "https://openalex.org/C138885662"
+    ],
+    "https://openalex.org/C112698675": [
+      "https://openalex.org/C144133560"
+    ],
+    "https://openalex.org/C11171543": [
+      "https://openalex.org/C15744967"
+    ],
+    "https://openalex.org/C107826830": [
+      "https://openalex.org/C162324750",
+      "https://openalex.org/C39432304"
+    ],
+    "https://openalex.org/C37621935": [
+      "https://openalex.org/C39432304",
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C188027245": [
+      "https://openalex.org/C185592680",
+      "https://openalex.org/C192562407"
+    ],
+    "https://openalex.org/C11413529": [
+      "https://openalex.org/C33923547",
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C42219234": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C144027150": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C10138342": [
+      "https://openalex.org/C144133560",
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C54750564": [
+      "https://openalex.org/C144133560",
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C144237770": [
+      "https://openalex.org/C162324750",
+      "https://openalex.org/C33923547"
+    ],
+    "https://openalex.org/C75630572": [
+      "https://openalex.org/C15744967"
+    ],
+    "https://openalex.org/C542102704": [
+      "https://openalex.org/C15744967"
+    ],
+    "https://openalex.org/C549774020": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C459310": [
+      "https://openalex.org/C33923547",
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C134306372": [
+      "https://openalex.org/C33923547"
+    ],
+    "https://openalex.org/C195094911": [
+      "https://openalex.org/C127413603",
+      "https://openalex.org/C144133560"
+    ],
+    "https://openalex.org/C79403827": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C548259974": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C124101348": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C52119013": [
+      "https://openalex.org/C142362112",
+      "https://openalex.org/C95457728"
+    ],
+    "https://openalex.org/C77595967": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C66938386": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C118524514": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C162118730": [
+      "https://openalex.org/C144133560",
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C19417346": [
+      "https://openalex.org/C144024400",
+      "https://openalex.org/C15744967"
+    ],
+    "https://openalex.org/C136264566": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C153911025": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C178802073": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C108827166": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C106159729": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C191897082": [
+      "https://openalex.org/C192562407"
+    ],
+    "https://openalex.org/C45355965": [
+      "https://openalex.org/C144024400",
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C71240020": [
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C97355855": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C8010536": [
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C126255220": [
+      "https://openalex.org/C33923547"
+    ],
+    "https://openalex.org/C13280743": [
+      "https://openalex.org/C127313418",
+      "https://openalex.org/C205649164"
+    ],
+    "https://openalex.org/C139719470": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C18547055": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C147597530": [
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C90924648": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C185544564": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C30475298": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C58640448": [
+      "https://openalex.org/C205649164"
+    ],
+    "https://openalex.org/C142724271": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C159047783": [
+      "https://openalex.org/C71924100",
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C47768531": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C4249254": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C88463610": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C190253527": [
+      "https://openalex.org/C144024400",
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C118084267": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C62520636": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C118552586": [
+      "https://openalex.org/C15744967",
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C180747234": [
+      "https://openalex.org/C15744967"
+    ],
+    "https://openalex.org/C99454951": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C109214941": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C151730666": [
+      "https://openalex.org/C127313418",
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C44870925": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C9390403": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C26873012": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C194828623": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C80444323": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C118487528": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C42407357": [
+      "https://openalex.org/C71924100",
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C2522767166": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C199343813": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C91586092": [
+      "https://openalex.org/C121332964",
+      "https://openalex.org/C127313418"
+    ],
+    "https://openalex.org/C77088390": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C94375191": [
+      "https://openalex.org/C33923547"
+    ],
+    "https://openalex.org/C55587333": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C73283319": [
+      "https://openalex.org/C144133560",
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C136764020": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C16685009": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C13965031": [
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C175444787": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C16674752": [
+      "https://openalex.org/C127313418",
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C117671659": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C201995342": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C203014093": [
+      "https://openalex.org/C71924100",
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C120314980": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C113775141": [
+      "https://openalex.org/C127413603",
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C21547014": [
+      "https://openalex.org/C127413603",
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C118615104": [
+      "https://openalex.org/C33923547"
+    ],
+    "https://openalex.org/C48824518": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C119599485": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C99508421": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C121684516": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C33332235": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C97137747": [
+      "https://openalex.org/C205649164"
+    ],
+    "https://openalex.org/C19527891": [
+      "https://openalex.org/C121332964",
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C171250308": [
+      "https://openalex.org/C192562407"
+    ],
+    "https://openalex.org/C528095902": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C91375879": [
+      "https://openalex.org/C205649164",
+      "https://openalex.org/C39432304"
+    ],
+    "https://openalex.org/C126348684": [
+      "https://openalex.org/C185592680",
+      "https://openalex.org/C192562407"
+    ],
+    "https://openalex.org/C43617362": [
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C162853370": [
+      "https://openalex.org/C144133560"
+    ],
+    "https://openalex.org/C186060115": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C34447519": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C6303427": [
+      "https://openalex.org/C162324750",
+      "https://openalex.org/C95457728"
+    ],
+    "https://openalex.org/C107993555": [
+      "https://openalex.org/C144024400"
+    ],
+    "https://openalex.org/C3079626": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C77805123": [
+      "https://openalex.org/C15744967"
+    ],
+    "https://openalex.org/C138496976": [
+      "https://openalex.org/C15744967"
+    ],
+    "https://openalex.org/C55493867": [
+      "https://openalex.org/C185592680",
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C138921699": [
+      "https://openalex.org/C144024400",
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C31903555": [
+      "https://openalex.org/C185592680",
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C24326235": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C2989005": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C114793014": [
+      "https://openalex.org/C127313418"
+    ],
+    "https://openalex.org/C155202549": [
+      "https://openalex.org/C144133560",
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C13736549": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C124952713": [
+      "https://openalex.org/C142362112"
+    ],
+    "https://openalex.org/C166957645": [
+      "https://openalex.org/C205649164",
+      "https://openalex.org/C95457728"
+    ],
+    "https://openalex.org/C183696295": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C126322002": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C509550671": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C154945302": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C23123220": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C512399662": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C175605778": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C170154142": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C90856448": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C49204034": [
+      "https://openalex.org/C127313418"
+    ],
+    "https://openalex.org/C202444582": [
+      "https://openalex.org/C33923547"
+    ],
+    "https://openalex.org/C105702510": [
+      "https://openalex.org/C71924100",
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C62649853": [
+      "https://openalex.org/C127313418",
+      "https://openalex.org/C205649164"
+    ],
+    "https://openalex.org/C121955636": [
+      "https://openalex.org/C144133560",
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C539667460": [
+      "https://openalex.org/C127413603",
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C126894567": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C15708023": [
+      "https://openalex.org/C138885662",
+      "https://openalex.org/C142362112"
+    ],
+    "https://openalex.org/C6557445": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C24667770": [
+      "https://openalex.org/C138885662"
+    ],
+    "https://openalex.org/C28490314": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C178790620": [
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C40700": [
+      "https://openalex.org/C144133560",
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C78762247": [
+      "https://openalex.org/C127313418",
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C105639569": [
+      "https://openalex.org/C144133560",
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C115903868": [
+      "https://openalex.org/C127413603",
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C171146098": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C169760540": [
+      "https://openalex.org/C15744967",
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C134018914": [
+      "https://openalex.org/C71924100",
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C548081761": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C195244886": [
+      "https://openalex.org/C95457728"
+    ],
+    "https://openalex.org/C95124753": [
+      "https://openalex.org/C138885662"
+    ],
+    "https://openalex.org/C133425853": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C46141821": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C5900021": [
+      "https://openalex.org/C127313418"
+    ],
+    "https://openalex.org/C136229726": [
+      "https://openalex.org/C127413603",
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C153349607": [
+      "https://openalex.org/C142362112"
+    ],
+    "https://openalex.org/C107053488": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C131872663": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C95444343": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C70410870": [
+      "https://openalex.org/C15744967",
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C60644358": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C145236788": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C159985019": [
+      "https://openalex.org/C192562407"
+    ],
+    "https://openalex.org/C188147891": [
+      "https://openalex.org/C15744967"
+    ],
+    "https://openalex.org/C199289684": [
+      "https://openalex.org/C127313418",
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C107457646": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C21880701": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C556758197": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C149635348": [
+      "https://openalex.org/C127413603",
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C178550888": [
+      "https://openalex.org/C144133560"
+    ],
+    "https://openalex.org/C120665830": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C147789679": [
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C49774154": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C18903297": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C134560507": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C29694066": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C545542383": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C41999313": [
+      "https://openalex.org/C121332964",
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C29595303": [
+      "https://openalex.org/C144024400"
+    ],
+    "https://openalex.org/C524765639": [
+      "https://openalex.org/C39432304"
+    ],
+    "https://openalex.org/C74363100": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C24890656": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C199104240": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C42972112": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C112930515": [
+      "https://openalex.org/C144133560",
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C150903083": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C87355193": [
+      "https://openalex.org/C121332964",
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C61696701": [
+      "https://openalex.org/C121332964",
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C143998085": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C140793950": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C50522688": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C74909509": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C31258907": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C173608175": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C149782125": [
+      "https://openalex.org/C162324750",
+      "https://openalex.org/C33923547"
+    ],
+    "https://openalex.org/C148383697": [
+      "https://openalex.org/C144024400",
+      "https://openalex.org/C205649164"
+    ],
+    "https://openalex.org/C165556158": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C87717796": [
+      "https://openalex.org/C127413603",
+      "https://openalex.org/C39432304"
+    ],
+    "https://openalex.org/C199360897": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C78519656": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C89423630": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C107038049": [
+      "https://openalex.org/C138885662",
+      "https://openalex.org/C142362112"
+    ],
+    "https://openalex.org/C57879066": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C105795698": [
+      "https://openalex.org/C33923547"
+    ],
+    "https://openalex.org/C59822182": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C145420912": [
+      "https://openalex.org/C15744967",
+      "https://openalex.org/C33923547"
+    ],
+    "https://openalex.org/C184779094": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C44154836": [
+      "https://openalex.org/C127413603",
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C61434518": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C119767625": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C177713679": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C159110408": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C159390177": [
+      "https://openalex.org/C127313418",
+      "https://openalex.org/C39432304"
+    ],
+    "https://openalex.org/C53553401": [
+      "https://openalex.org/C95457728"
+    ],
+    "https://openalex.org/C16005928": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C155647269": [
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C167562979": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C126838900": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C187320778": [
+      "https://openalex.org/C127313418",
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C41895202": [
+      "https://openalex.org/C138885662"
+    ],
+    "https://openalex.org/C29456083": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C22212356": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C38652104": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C119857082": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C19165224": [
+      "https://openalex.org/C144024400"
+    ],
+    "https://openalex.org/C147176958": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C28826006": [
+      "https://openalex.org/C33923547"
+    ],
+    "https://openalex.org/C33070731": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C46312422": [
+      "https://openalex.org/C144024400",
+      "https://openalex.org/C15744967"
+    ],
+    "https://openalex.org/C204321447": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C161191863": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C75473681": [
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C37914503": [
+      "https://openalex.org/C121332964",
+      "https://openalex.org/C33923547"
+    ],
+    "https://openalex.org/C76155785": [
+      "https://openalex.org/C127413603",
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C12554922": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C2549261": [
+      "https://openalex.org/C144024400",
+      "https://openalex.org/C95457728"
+    ],
+    "https://openalex.org/C70721500": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C146978453": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C111919701": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C3116431": [
+      "https://openalex.org/C17744445"
+    ],
+    "https://openalex.org/C556039675": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C121864883": [
+      "https://openalex.org/C121332964"
+    ],
+    "https://openalex.org/C56739046": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C111368507": [
+      "https://openalex.org/C127313418"
+    ],
+    "https://openalex.org/C27206212": [
+      "https://openalex.org/C138885662"
+    ],
+    "https://openalex.org/C49040817": [
+      "https://openalex.org/C121332964",
+      "https://openalex.org/C192562407"
+    ],
+    "https://openalex.org/C141071460": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C502942594": [
+      "https://openalex.org/C71924100",
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C199639397": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C187212893": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C177322064": [
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C100001284": [
+      "https://openalex.org/C162324750"
+    ],
+    "https://openalex.org/C1862650": [
+      "https://openalex.org/C71924100"
+    ],
+    "https://openalex.org/C200601418": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C74916050": [
+      "https://openalex.org/C142362112",
+      "https://openalex.org/C95457728"
+    ],
+    "https://openalex.org/C107872376": [
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C21951064": [
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C8058405": [
+      "https://openalex.org/C121332964",
+      "https://openalex.org/C127313418"
+    ],
+    "https://openalex.org/C78458016": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C73484699": [
+      "https://openalex.org/C144024400",
+      "https://openalex.org/C15744967"
+    ],
+    "https://openalex.org/C31972630": [
+      "https://openalex.org/C41008148"
+    ],
+    "https://openalex.org/C54355233": [
+      "https://openalex.org/C86803240"
+    ],
+    "https://openalex.org/C42475967": [
+      "https://openalex.org/C127413603",
+      "https://openalex.org/C33923547"
+    ],
+    "https://openalex.org/C165205528": [
+      "https://openalex.org/C127313418"
+    ],
+    "https://openalex.org/C100970517": [
+      "https://openalex.org/C205649164"
+    ],
+    "https://openalex.org/C116915560": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C179104552": [
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C26271046": [
+      "https://openalex.org/C162324750",
+      "https://openalex.org/C205649164"
+    ],
+    "https://openalex.org/C199539241": [
+      "https://openalex.org/C17744445"
+    ],
+    "https://openalex.org/C159467904": [
+      "https://openalex.org/C121332964",
+      "https://openalex.org/C185592680"
+    ],
+    "https://openalex.org/C149923435": [
+      "https://openalex.org/C144024400"
+    ],
+    "https://openalex.org/C114614502": [
+      "https://openalex.org/C33923547"
+    ],
+    "https://openalex.org/C133731056": [
+      "https://openalex.org/C127413603"
+    ],
+    "https://openalex.org/C526734887": [
+      "https://openalex.org/C205649164",
+      "https://openalex.org/C39432304"
+    ]
+  },
+  "policy": "Historical official ancestor chains for navigation only; snapshot ancestors are null. No retagging, inferred co-occurrence parents, or sum-of-children rollups.",
+  "missing_parent_concepts": []
+}

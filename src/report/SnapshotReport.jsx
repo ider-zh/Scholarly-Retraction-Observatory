@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {validateManifest, validateChunk} from './schema.js';
 import ReportGuide from './ReportGuide.jsx';
+import DisciplineExplorer from './DisciplineExplorer.jsx';
 import InteractiveChart from './InteractiveChart.jsx';
 import {plotKind} from './chartGeometry.js';
 import {SOURCE_NAMES, SOURCE_ORDER, sourceProfile, filterCharts, parseSources, reportHref} from './sources.js';
@@ -14,10 +15,11 @@ function readRoute() {
   const [route, query = ''] = window.location.hash.slice(1).split('?');
   const page = route.split('/')[2] || 'overview';
   const params = new URLSearchParams(query);
-  const rejected = [...params.keys()].filter(key => !['slice', 'sources'].includes(key));
+  const rejected = [...params.keys()].filter(key => !['slice', 'sources', 'view', 'taxonomy', 'population', 'node', 'parent', 'metric'].includes(key));
   const selection = parseSources(params.get('sources'));
-  return {sources: selection.sources, page: PAGES[page] ? page : 'overview', slice: params.get('slice') || '',
-    error: !PAGES[page] ? `未支持的章节：${page}` : rejected.length ? `未支持的参数：${rejected.join(', ')}` : selection.error};
+  const explorerSelection = Object.fromEntries(['taxonomy', 'population', 'node', 'parent', 'metric'].map(key => [key, params.get(key) || '']));
+  return {explorerSelection, view: params.get('view'), sources: selection.sources, page: PAGES[page] ? page : 'overview', slice: params.get('slice') || '',
+    error: !PAGES[page] ? `未支持的章节：${page}` : rejected.length ? `未支持的参数：${rejected.join(', ')}` : selection.error || (params.has('view') && !['tree', 'charts'].includes(params.get('view')) ? '未支持的学科视图' : null)};
 }
 
 async function checkedJSON(url, signal, expected) {
@@ -127,7 +129,7 @@ export default function SnapshotReport() {
   const [manifestError, setManifestError] = useState(null);
   const [shareStatus, setShareStatus] = useState('');
   const headingRef = useRef(null), analysisRef = useRef(null), preserveSourceFocus = useRef(false);
-  useEffect(() => {const change = () => setRoute(readRoute()); window.addEventListener('hashchange', change); return () => window.removeEventListener('hashchange', change);}, []);
+  useEffect(() => {const change = () => {setShareStatus(''); setRoute(readRoute());}; window.addEventListener('hashchange', change); return () => window.removeEventListener('hashchange', change);}, []);
   useEffect(() => {const controller = new AbortController(); checkedJSON(`${import.meta.env.BASE_URL}data/snapshot/manifest.json`, controller.signal).then(validateManifest).then(setManifest).catch(error => {if (error.name !== 'AbortError') setManifestError(error.message);}); return () => controller.abort();}, []);
   useEffect(() => {
     if (!manifest) return;
@@ -135,11 +137,12 @@ export default function SnapshotReport() {
     setState({key: page, charts: null, error: null});
     const file = manifest.files.find(item => item.path.endsWith(`/${page}.json`));
     checkedJSON(`${import.meta.env.BASE_URL}${file.path}`, controller.signal, file).then(chunk => validateChunk(chunk, manifest, page))
-      .then(chunk => {if (!controller.signal.aborted) setState({key: page, charts: chunk.charts, error: null});})
+      .then(chunk => {if (!controller.signal.aborted) setState({key: page, charts: chunk.charts, explorer: chunk.discipline_explorer, error: null});})
       .catch(error => {if (error.name !== 'AbortError') setState({key: page, charts: null, error: error.message});});
     return () => controller.abort();
   }, [manifest, route.page]);
   const current = state.key === route.page ? state : {charts: null, error: null};
+  const showExplorer = route.page === 'fields' && current.explorer && !route.slice && route.view !== 'charts';
   const visibleCharts = filterCharts(current.charts || [], route.sources);
   const selected = selectChart(visibleCharts, route.slice);
   const position = visibleCharts.indexOf(selected);
@@ -148,7 +151,7 @@ export default function SnapshotReport() {
     if (!groups.has(chart.chart_id)) groups.set(chart.chart_id, []);
     groups.get(chart.chart_id).push(chart);
   }
-  const navigate = href => {window.location.hash = href; setRoute(readRoute());};
+  const navigate = href => {setShareStatus(''); window.location.hash = href; setRoute(readRoute());};
   const changeSlice = value => navigate(reportHref(route.page, route.sources, value));
   const changeSources = source => {
     const sources = route.sources.includes(source) ? route.sources.filter(value => value !== source) : SOURCE_ORDER.filter(value => route.sources.includes(value) || value === source);
@@ -172,10 +175,12 @@ export default function SnapshotReport() {
   }, [route.page, route.slice, route.sources.join(','), current.charts]);
   return <div className="snapshot-app"><header className="snapshot-header"><a href="#">← 当前 RW 报告</a><span>Scholarly Retraction Observatory</span><a href={reportHref('quality', route.sources)}>数据与方法</a></header><div className="snapshot-layout"><nav aria-label="快照报告章节"><h2>快照联合研究报告</h2>{Object.entries(PAGES).map(([key, label]) => <a key={key} href={reportHref(key, route.sources)} aria-current={route.page === key ? 'page' : undefined}>{label}</a>)}</nav><main>
     <p className="snapshot-eyebrow">OPENALEX × RETRACTION WATCH</p><h1 ref={headingRef} tabIndex={-1}>{PAGES[route.page]}</h1>
-    <section className="snapshot-source-picker" aria-label="报告数据集选择"><h2>先选择分析的数据集</h2><fieldset><legend>可单选或多选；至少保留一个数据集</legend>{SOURCE_ORDER.map(source => <label key={source}><input type="checkbox" checked={route.sources.includes(source)} disabled={route.sources.length === 1 && route.sources.includes(source)} onChange={() => changeSources(source)}/>{SOURCE_NAMES[source]}</label>)}</fieldset><p><strong>当前选择：{route.sources.map(source => SOURCE_NAMES[source]).join(' + ') || '请重新选择'}</strong>。{route.sources.length === 2 ? '同时展示单库分析、匹配子集和跨库核对；每张图单独标注口径。' : '仅列出采用该库研究对象与字段的分析，依赖两库匹配的图表已隐藏。'}</p><p className="snapshot-source-distinction"><strong>联合分析 ≠ 两库并集。</strong>现有联合图表以匹配子集或跨库核对为主。去重并集需要统一身份、筛选与字段覆盖，本版没有发布其统计；不能把两库数量相加。OpenAlex 标记与身份筛选也有 RW 来源依赖。</p>{current.charts && <p className="snapshot-caption">本章符合选择的分析：{visibleCharts.length} / {current.charts.length}。切换数据集不会更改统计数值或分母。</p>}</section>
+    <section className="snapshot-source-picker" aria-label="报告数据集选择"><h2>先选择分析的数据集</h2><fieldset><legend>可单选或多选；至少保留一个数据集</legend>{SOURCE_ORDER.map(source => <label key={source}><input type="checkbox" checked={route.sources.includes(source)} disabled={route.sources.length === 1 && route.sources.includes(source)} onChange={() => changeSources(source)}/>{SOURCE_NAMES[source]}</label>)}</fieldset><p><strong>当前选择：{route.sources.map(source => SOURCE_NAMES[source]).join(' + ') || '请重新选择'}</strong>。{route.sources.length === 2 ? '同时展示单库分析、匹配子集和跨库核对；每张图单独标注口径。' : '仅列出采用该库研究对象与字段的分析，依赖两库匹配的图表已隐藏。'}</p><p className="snapshot-source-distinction"><strong>联合分析 ≠ 两库并集。</strong>现有联合图表以匹配子集或跨库核对为主。去重并集需要统一身份、筛选与字段覆盖，本版没有发布其统计；不能把两库数量相加。OpenAlex 标记与身份筛选也有 RW 来源依赖。</p>{current.charts && <p className="snapshot-caption">{showExplorer ? '学科树按所选来源列出可用分类与研究总体；另有 '+visibleCharts.length+' 项原有专题分析。' : '本章符合选择的分析：'+visibleCharts.length+' / '+current.charts.length+'。'}切换数据集不会更改统计数值或分母。</p>}</section>
     {manifest && <><p className="snapshot-caption">OpenAlex 文献快照：{manifest.oa_snapshot_date} · Retraction Watch 记录截至：{manifest.rw_snapshot_date}</p><details className="snapshot-source-audit"><summary>数据版本与来源审计</summary><p>报告版本：{manifest.release_id}。{manifest.source_acceptance_policy === 'retrospective-v1' ? '本地清单、文件和身份检查通过；项目接受回溯验证，但下载前清单及传输时间日志没有保存，不能补造这些历史证据。' : '来源检查结果保存在报告的可复核清单中。'}</p><a href={reportHref('quality', route.sources)}>查看数据质量与方法</a></details></>}
     {route.error && <p role="alert" className="snapshot-unavailable">{route.error}；请核对地址参数或重新选择。</p>}
     {manifestError || current.error ? <p role="alert">{manifestError || current.error}。未显示旧版数据；请重新加载。</p> : !current.charts ? <p role="status">正在验证并加载本章聚合数据…</p> : <>
+      {route.page === 'fields' && current.explorer && <nav className="snapshot-entry-tabs" aria-label="学科分析视图"><a href={reportHref('fields', route.sources)} aria-current={showExplorer ? 'page' : undefined}>学科树 · 分布与时间</a><a href={reportHref('fields', route.sources)+'&view=charts'} aria-current={!showExplorer ? 'page' : undefined}>原有专题分析</a></nav>}
+      {showExplorer ? <><DisciplineExplorer data={current.explorer} sources={route.sources} selection={route.explorerSelection} navigate={navigate}/><button onClick={async () => {try {await navigator.clipboard.writeText(window.location.href); setShareStatus('已复制当前数据集、分类、学科节点与指标的链接。');} catch {setShareStatus('请复制地址栏中的完整学科分析链接。');}}}>复制当前学科分析链接</button><p role="status">{shareStatus}</p></> : <>
       {visibleCharts.length > 0 && <ReportGuide page={route.page} charts={visibleCharts}/>}
       {quickEntries.some(identifier => visibleCharts.some(chart => chart.chart_id === identifier)) && <nav className="snapshot-entry-tabs" aria-label="本章快捷分析">{quickEntries.map(identifier => {const chart = visibleCharts.find(candidate => candidate.chart_id === identifier); return chart && <button key={identifier} onClick={() => choose(chart)}>{chartName(chart)}</button>;})}</nav>}
       <div className="snapshot-controls"><label>选择本章分析 <select disabled={!visibleCharts.length} value={route.slice || (selected ? `${selected.chart_id}/${selected.slice_id}` : '')} onChange={event => changeSlice(event.target.value)}>{visibleCharts.map(chart => <option key={`${chart.chart_id}/${chart.slice_id}`} value={`${chart.chart_id}/${chart.slice_id}`}>{chartName(chart)} — {variantName(chart)}</option>)}{route.slice && !selected && <option value={route.slice}>当前数据集不可用的分析</option>}</select></label><button onClick={() => changeSlice('')}>重置分析</button><button onClick={async () => {try {await navigator.clipboard.writeText(window.location.href); setShareStatus('链接已复制，包含数据集和当前分析选择。');} catch {setShareStatus('无法自动复制，请复制浏览器地址栏中的链接。');}}}>复制当前分析链接</button><span role="status">{shareStatus}</span></div>
@@ -183,6 +188,7 @@ export default function SnapshotReport() {
       {selected && <div className="snapshot-pagination"><button disabled={position <= 0} onClick={() => choose(visibleCharts[position - 1])}>← 上一项分析</button><span>{position + 1} / {visibleCharts.length}</span><button disabled={position >= visibleCharts.length - 1} onClick={() => choose(visibleCharts[position + 1])}>下一项分析 →</button></div>}
       {!selected ? <p role="status" className="snapshot-unavailable">{visibleCharts.length ? '这个分析不属于当前数据集选择，或尚未计算；请从列表选择，不会自动显示另一数据集的结果。' : '本章没有只使用所选数据集的已发布分析；这不表示没有撤稿。例如 Concepts 需要 OpenAlex 字段，RW 原始记录不能独立提供。'} <a href={reportHref('time', route.sources)}>查看所选数据集的时间分析</a>，或在顶部增加数据集。</p> : <ChartCard key={`${selected.chart_id}/${selected.slice_id}`} chart={selected}/>}
       </section></div>
+      </>}
       {route.page === 'quality' && <details><summary>完整来源与质量门槛</summary><pre>{JSON.stringify(manifest, null, 2)}</pre></details>}
     </>}
     <footer>仅导出已发布的聚合单元；国家、机构、作者或来源关联均不等于不端责任。</footer>

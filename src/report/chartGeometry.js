@@ -2,7 +2,7 @@ export function plotKind(chart) {
   if (chart.control_policy) return 'control';
   if (['R4', 'P3'].includes(chart.chart_id)) return 'interval';
   if (['F3', 'P1'].includes(chart.chart_id)) return 'scatter';
-  if (['T1', 'T3', 'T4', 'E3', 'C1', 'C2'].includes(chart.chart_id)) return 'line';
+  if (['T1', 'T3', 'T4', 'E3', 'C1', 'C2', 'discipline-time'].includes(chart.chart_id)) return 'line';
   return null;
 }
 

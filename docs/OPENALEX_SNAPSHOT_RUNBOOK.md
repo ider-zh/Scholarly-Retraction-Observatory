@@ -142,6 +142,7 @@ python -m pipeline.snapshot_report "$RUN_DIR"
 python -m pipeline.snapshot_citations "$RUN_DIR" --workers 6 --threads 8 --memory-limit 32GB
 python -m pipeline.snapshot_supplement "$RUN_DIR" --workers 6 --threads 8 --memory-limit 32GB
 python -m pipeline.snapshot_concepts "$RUN_DIR" --workers 6 --threads 8 --memory-limit 24GB
+python -m pipeline.snapshot_taxonomy "$RUN_DIR" --workers 6 --threads 8 --memory-limit 32GB
 python -m pipeline.snapshot_report "$RUN_DIR"
 python -m pipeline.publish_snapshot "$RUN_DIR/report"
 npm run build

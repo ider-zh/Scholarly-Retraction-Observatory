@@ -22,6 +22,8 @@ from .publisher_analysis import build_charts as publisher_charts
 from .supplement_analysis import build_charts as supplement_charts
 from .extended_descriptive import build_charts as extended_charts
 from .concept_analysis import build_charts as concept_charts
+from .taxonomy_analysis import build_explorer, REFERENCE as TAXONOMY_REFERENCE
+from .aggregate_codec import pack_chart
 from .report_language import readable, format_value, TYPE_NAMES
 
 
@@ -187,16 +189,20 @@ def build(release_dir):
     oa_date, rw_date = validation['oa_snapshot_date'], provenance['rw']['rw_snapshot_date']
     dimension_version = json.loads((release_dir / 'dimensions-complete.json').read_text())['code_sha256'] if (release_dir / 'dimensions-complete.json').exists() else None
     extension_hashes = {name: digest(Path(__file__).with_name(name + '.py').read_bytes())
-                        for name in ('citation_analysis', 'reason_families', 'publisher_analysis', 'supplement_analysis', 'extended_descriptive', 'concept_analysis', 'report_language')}
+                        for name in ('citation_analysis', 'reason_families', 'publisher_analysis', 'supplement_analysis', 'extended_descriptive', 'concept_analysis', 'report_language', 'taxonomy_analysis', 'aggregate_codec')}
     citation_marker = json.loads((release_dir / 'citations-complete.json').read_text()) if (release_dir / 'citations-complete.json').exists() else None
     supplement_marker = json.loads((release_dir / 'supplement-complete.json').read_text()) if (release_dir / 'supplement-complete.json').exists() else None
     concept_marker = json.loads((release_dir / 'concepts-complete.json').read_text()) if (release_dir / 'concepts-complete.json').exists() else None
+    taxonomy_marker = json.loads((release_dir / 'taxonomy-complete.json').read_text()) if (release_dir / 'taxonomy-complete.json').exists() else None
+    taxonomy_reference_hash = digest(TAXONOMY_REFERENCE.read_bytes())
     burst_policy_hash = digest((Path(__file__).resolve().parents[1] / 'data/reference/snapshot-burst-policy-v1.json').read_bytes())
     report_config_hash = digest(json.dumps({'scan_config_sha256': provenance['config_sha256'],
         'report_source_sha256': report_source_hash, 'dimension_source_sha256': dimension_version,
         'extensions': extension_hashes, 'burst_policy': burst_policy_hash,
         'supplement': supplement_marker['config_sha256'] if supplement_marker else None,
         'concepts': concept_marker['config_sha256'] if concept_marker else None,
+        'taxonomy': taxonomy_marker['config_sha256'] if taxonomy_marker else None,
+        'taxonomy_reference': taxonomy_reference_hash,
         'citations': citation_marker['config_sha256'] if citation_marker else None}, sort_keys=True).encode())
     release_id = 'oa-' + oa_date + '-' + report_config_hash[:12]
     papers = json.loads((release_dir / 'rw_original.json').read_text())
@@ -764,6 +770,7 @@ def build(release_dir):
         chapters[section].extend(results)
     concept_results, concepts = concept_charts(release_dir, provenance, entries, works, {'A1': a1, 'C': set(by_work)}, oa_date, rw_date, chart, count_row)
     chapters['fields'].extend(concept_results)
+    explorer = build_explorer(release_dir, provenance, validation, entries, papers, works, cd, denominators, flagged)
     unavailable = {
         'reasons': [],
         'fields': [] if dimension_rows else [('F3', '学科规模与比例', '学科分母未计算。'), ('F4', '数量与比例排名', '学科分母未计算。')],
@@ -796,7 +803,7 @@ def build(release_dir):
                          'incoming_citations': bool(incoming), 'reason_families': True, 'publisher_rollups': publisher_ready,
                          'additional_denominators': bool(supplement), 'fixed_publication_followup': bool(supplement),
                          'monthly_descriptive_control': True, 'any_topic': True,
-                         'legacy_concepts': bool(concepts), 'author_top_table': True,
+                         'legacy_concepts': bool(concepts), 'author_top_table': True, 'discipline_explorer': bool(explorer),
                          'historical_publisher_ownership': False, 'author_career': False,
                          'adjusted_or_causal_models': False, 'funding_exploration': False,
                          'self_citation_exclusion': False},
@@ -813,7 +820,7 @@ def build(release_dir):
         atomic_json(release_dir / 'citation-summary.json', incoming['summary'])
     if supplement:
         manifest['quality_gates']['supplement_reproduces_D_A1'] = True
-    for filename, captured in [('citations-complete.json', citation_marker), ('supplement-complete.json', supplement_marker), ('concepts-complete.json', concept_marker)]:
+    for filename, captured in [('citations-complete.json', citation_marker), ('supplement-complete.json', supplement_marker), ('concepts-complete.json', concept_marker), ('taxonomy-complete.json', taxonomy_marker)]:
         path = release_dir / filename
         current = json.loads(path.read_text()) if path.exists() else None
         if (current or {}).get('config_sha256') != (captured or {}).get('config_sha256'):
@@ -835,7 +842,11 @@ def build(release_dir):
             for insight in item['insights']:
                 insight['release_id'] = release_id
             manifest['supported_slices'].append({'chart_id': item['chart_id'], 'slice_id': item['slice_id'], 'section': section, 'status': item['status']})
-        chunk = {'schema_version': 3, 'release_id': release_id, 'section': section, 'charts': charts}
+        chunk = {'schema_version': 3, 'release_id': release_id, 'section': section, 'charts': [pack_chart(item) for item in charts]}
+        if section == 'fields' and explorer:
+            chunk['discipline_explorer'] = dict(explorer, release_id=release_id)
+        if digest(TAXONOMY_REFERENCE.read_bytes()) != taxonomy_reference_hash:
+            raise ValueError('Taxonomy reference changed during report generation')
         raw = json.dumps(compact_numbers(chunk), ensure_ascii=False, separators=(',', ':'), allow_nan=False).encode()
         atomic_bytes(report_dir / (section + '.json'), raw)
         manifest['files'].append({'path': 'data/snapshot/' + section + '.json', 'bytes': len(raw), 'sha256': digest(raw)})

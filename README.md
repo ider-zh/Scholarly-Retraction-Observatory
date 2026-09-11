@@ -35,6 +35,8 @@ Python 离线处理（原始 CSV / OpenAlex 缓存，仅本地或 Actions）
 
 数据集可选择 RW、OpenAlex 或同时选择：只列出当前来源组合支持的分析，每图显著区分单库、匹配子集与跨库核对；同时选择不等于去重并集。点线图支持悬停、点击/轻触锁定、键盘逐点查看和范围缩放。来源选择保留在章节导航、分享链接及 CSV 口径说明中。
 
+`#/snapshot/fields` 默认进入两层学科树：RW Subject 7 主类 / 130 子学科、Topics 26 Field / 252 Subfield、Concepts 19 个 Level 0 / 284 个 Level 1。每个节点联动学科分布和按发表年的数量/比率图；支持搜索、研究总体选择、面包屑、深链接及 CSV。RW 只计算撤稿样本内覆盖比例，不虚构全体发文分母。详见[两层学科分析交付](docs/OPENALEX_DISCIPLINE_EXPLORER.md)。
+
 - [OpenAlex Snapshot Analysis Spec v2](docs/OPENALEX_SNAPSHOT_ANALYSIS_SPEC.md)：区分标记记录与原论文候选、RW/OA 来源依赖、core/expansion 口径、国家归属、分子分母、匹配与日期、引用边、质量门槛和发布契约。
 - [Website Report Design](docs/WEBSITE_REPORT_DESIGN.md)：9 个报告章节、29 个独立分析图表规格、证据关联的数据解读、筛选联动、静态聚合数据契约、视觉与可访问性验收。
 - [快照运行说明](docs/OPENALEX_SNAPSHOT_RUNBOOK.md)：源校验、固定 RW 提交、并行分析、内存缓存、分母扫描、v3 聚合与原子发布。
