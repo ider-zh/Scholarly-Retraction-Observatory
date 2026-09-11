@@ -131,15 +131,17 @@ class SnapshotAnalysisTests(unittest.TestCase):
         table = table.append_column('title', pa.array(['Retraction notice', 'Original article', 'Expansion work']))
         table = table.append_column('authors_count', pa.array([0, 0, 0], type=pa.int32()))
         table = table.append_column('topics', pa.array([[], [], []], type=pa.list_(table.schema.field('primary_topic').type)))
+        concept = pa.struct([('id', pa.string()), ('display_name', pa.string()), ('level', pa.int32()), ('score', pa.float64())])
+        table = table.append_column('concepts', pa.array([[], [{'id': 'https://openalex.org/C1', 'display_name': 'Test concept', 'level': 0, 'score': 0.0}], []], type=pa.list_(concept)))
         source = pa.struct([('id', pa.string()), ('display_name', pa.string()), ('type', pa.string())])
         table = table.append_column('primary_location', pa.array([None] * 3, type=pa.struct([('source', source)])))
         table = table.append_column('cited_by_count', pa.array([0, 3, None], type=pa.int32()))
         table = table.append_column('referenced_works', pa.array([['https://openalex.org/W2'], [], []], type=pa.list_(pa.string())))
         table = table.append_column('language', pa.array(['en', 'en', None], type=pa.string()))
         table = table.append_column('open_access', pa.array([{'oa_status': 'closed'}]*3, type=pa.struct([('oa_status', pa.string())])))
-        author = pa.struct([('author', pa.struct([('id', pa.string())])), ('countries', pa.list_(pa.string())),
+        author = pa.struct([('author', pa.struct([('id', pa.string()), ('display_name', pa.string())])), ('countries', pa.list_(pa.string())),
             ('institutions', pa.list_(pa.struct([('id', pa.string()), ('display_name', pa.string()), ('country_code', pa.string())])))])
-        table = table.set_column(table.schema.get_field_index('authorships'), 'authorships', pa.array([[], [], []], type=pa.list_(author)))
+        table = table.set_column(table.schema.get_field_index('authorships'), 'authorships', pa.array([[], [{'author': {'id': 'https://openalex.org/A1', 'display_name': 'Test Author'}, 'countries': [], 'institutions': []}], []], type=pa.list_(author)))
         pq.write_table(table, fixture.work)
         size = fixture.work.stat().st_size
         fixture.manifest['entities'][0]['files'][0]['meta']['content_length'] = size
@@ -167,10 +169,23 @@ class SnapshotAnalysisTests(unittest.TestCase):
         with patch('pipeline.snapshot_citations.scan_file', side_effect=AssertionError('Completed edge shards must be reused')):
             citation_scan(run, workers=1, threads=1, memory_limit='512MB')
         supplement_scan(run, workers=1, threads=1, memory_limit='512MB')
+        from pipeline.snapshot_concepts import run as concept_scan
+        concept_scan(run, workers=1, threads=1, memory_limit='512MB')
+        with patch('pipeline.snapshot_concepts.duckdb.connect', side_effect=AssertionError('Completed concept shards must be reused')):
+            concept_scan(run, workers=1, threads=1, memory_limit='512MB')
         report = build(run)
         updated_manifest = json.loads((report / 'manifest.json').read_text())
         self.assertTrue(updated_manifest['capabilities']['incoming_citations'])
         self.assertTrue(updated_manifest['capabilities']['fixed_publication_followup'])
+        self.assertTrue(updated_manifest['capabilities']['legacy_concepts'])
+        fields = json.loads((report / 'fields.json').read_text())
+        concepts = next(chart for chart in fields['charts'] if chart['slice_id'] == 'C-concepts-level-0')
+        self.assertEqual(concepts['rows'][0]['value'], 1)
+        self.assertEqual(concepts['concept_coverage']['known_works'], 1)
+        entities = json.loads((report / 'entities.json').read_text())
+        authors = next(chart for chart in entities['charts'] if chart['chart_id'] == 'author-top' and chart['population_key'] == 'C')
+        self.assertEqual(authors['rows'][0]['label'], 'Test Author')
+        self.assertEqual(authors['rows'][0]['value'], 1)
         overview = json.loads((report / 'overview.json').read_text())
         populations = {row['id']: row['value'] for row in overview['charts'][0]['rows']}
         self.assertEqual(populations['A0'], 1)

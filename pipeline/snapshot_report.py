@@ -21,6 +21,8 @@ from .reason_families import build_charts as reason_family_charts, VERSION as RE
 from .publisher_analysis import build_charts as publisher_charts
 from .supplement_analysis import build_charts as supplement_charts
 from .extended_descriptive import build_charts as extended_charts
+from .concept_analysis import build_charts as concept_charts
+from .report_language import readable, format_value, TYPE_NAMES
 
 
 SECTIONS = ('overview', 'time', 'fields', 'reasons', 'geography', 'entities', 'publishing', 'citations', 'quality')
@@ -100,6 +102,8 @@ def associations(memberships):
 def chart(chart_id, population, metric, rows, title, question, *, scope=None, missing=0,
           denominator=None, limitations=None, status='ready', unavailable_reason=None, extras=None):
     scope = scope or {}
+    title, question = readable(title), readable(question)
+    rows = [dict(row, label=readable(row['label'])) for row in rows]
     result = {'chart_id': chart_id, 'slice_id': scope.get('slice_id', population + '-default'),
               'population_key': population, 'metric_id': metric, 'status': status,
               'title': title, 'question': question, 'scope': scope, 'rows': rows,
@@ -116,21 +120,21 @@ def chart(chart_id, population, metric, rows, title, question, *, scope=None, mi
         ordered = sorted(candidates, key=lambda row: row['value'], reverse=True)
         peak = ordered[0] if ordered else next((row for row in rows if row.get('value') is not None), None)
         if peak:
-            unit = {'works': '篇作品', 'authors': '位作者', 'percent': '%', 'per_10k': '每万篇', 'years': '年'}.get(peak.get('unit'), peak.get('unit', 'works'))
-            observation = f"当前发布单元中，{peak['label']} 为 {peak['value']:,.2f} {unit}；分子 {peak['numerator']:,}"
+            unit = {'works': '篇', 'records': '条记录', 'authors': '位作者', 'edges': '条引用', 'edges_per_target': '条引用 / 合格论文', 'percent': '%', 'per_10k': '篇 / 每万篇发表论文', 'years': '年'}.get(peak.get('unit'), peak.get('unit', 'works'))
+            observation = f"在本图统计范围内，“{peak['label']}”为 {format_value(peak['value'], peak.get('unit'))} {unit}"
             if peak.get('denominator') is not None:
-                observation += f"，分母 {peak['denominator']:,}"
+                observation += f"（计数 {peak['numerator']:,} / 比较基数 {peak['denominator']:,}）"
             evidence = [peak['id']]
             if len(ordered) > 1:
                 other = ordered[1]
-                observation += f"；{other['label']} 为 {other['value']:,.2f} {unit}（n={other['numerator']:,}"
+                observation += f"；“{other['label']}”为 {format_value(other['value'], other.get('unit'))} {unit}（计数 {other['numerator']:,}"
                 if other.get('denominator') is not None:
-                    observation += f"，N={other['denominator']:,}"
+                    observation += f"，比较基数 {other['denominator']:,}"
                 observation += '）'
                 evidence.append(other['id'])
             if metric.endswith('_cohort_per_10k'):
                 observation += '。比例比较仅限满足 n≥20、N≥1,000 门槛的单元' if candidates else '。没有单元满足排名门槛，不进行比例排名'
-            observation += '。完整统计范围与缺失见下表；展示顺序不代表责任或因果判断。'
+            observation += '。这些数值描述数据库中的记录；如何计数和哪些记录未纳入，见本图方法。'
             result['insights'] = [{'insight_id': chart_id + '-' + result['slice_id'],
                 'chart_id': chart_id, 'slice_id': result['slice_id'], 'status': 'ready',
                 'evidence_cells': evidence, 'comparison_basis': 'eligible_displayed_cells' if candidates else 'single_cell_no_ranking',
@@ -149,6 +153,21 @@ def chart(chart_id, population, metric, rows, title, question, *, scope=None, mi
             'comparison_basis': 'snapshot_citation_distribution', 'evidence_cells': ['quantiles:median', 'quantiles:p90'],
             'text': f"当前范围 {denominator:,} 篇作品中，引用次数可用 {denominator-missing:,} 篇；中位数为 {result['quantiles']['median']:,.1f} 次，P90 为 {result['quantiles']['p90']:,.1f} 次。不同作品的引用机会随发表年龄而变化。",
             'limitations': result['limitations']}]
+    if chart_id == 'population-accounting':
+        counts = {row['id']: row['numerator'] for row in rows}
+        result['insights'] = [{'insight_id': chart_id+'-'+result['slice_id'], 'chart_id': chart_id,
+            'slice_id': result['slice_id'], 'status': 'ready', 'template_id': 'reader-populations-v1',
+            'comparison_basis': 'separate_overlapping_populations', 'evidence_cells': ['A0', 'A1', 'B', 'C'],
+            'text': f"OpenAlex 主体库中有 {counts['A0']:,} 条带撤稿标记的文献记录，按类型、原论文身份与日期筛选后，{counts['A1']:,} 篇进入默认论文分析。另一路从 Retraction Watch 的 {counts['B']:,} 篇去重原论文出发，匹配到 {counts['C']:,} 条不同的 OpenAlex 记录。两条路径回答不同问题，并且彼此重叠，不能相加。",
+            'limitations': result['limitations']}]
+    if chart_id == 'screening':
+        kept = next((row for row in rows if row['id'] == 'retained_A1'), None)
+        if kept and denominator:
+            result['insights'] = [{'insight_id': chart_id+'-'+result['slice_id'], 'chart_id': chart_id,
+                'slice_id': result['slice_id'], 'status': 'ready', 'template_id': 'reader-screening-v1',
+                'comparison_basis': 'partition_of_all_flagged_core_records', 'evidence_cells': [row['id'] for row in rows],
+                'text': f"筛选前共有 {denominator:,} 条标记记录；保留 {kept['numerator']:,} 篇研究论文候选，占 {kept['value']:.2f}%。其余 {denominator-kept['numerator']:,} 条（{100-kept['value']:.2f}%）包括其他文献类型、通知和身份冲突等。这个差额反映默认研究范围与数据库标记范围的区别，不表示同等数量的撤稿记录被认定为错误。",
+                'limitations': result['limitations']}]
     return result
 
 
@@ -168,14 +187,16 @@ def build(release_dir):
     oa_date, rw_date = validation['oa_snapshot_date'], provenance['rw']['rw_snapshot_date']
     dimension_version = json.loads((release_dir / 'dimensions-complete.json').read_text())['code_sha256'] if (release_dir / 'dimensions-complete.json').exists() else None
     extension_hashes = {name: digest(Path(__file__).with_name(name + '.py').read_bytes())
-                        for name in ('citation_analysis', 'reason_families', 'publisher_analysis', 'supplement_analysis', 'extended_descriptive')}
+                        for name in ('citation_analysis', 'reason_families', 'publisher_analysis', 'supplement_analysis', 'extended_descriptive', 'concept_analysis', 'report_language')}
     citation_marker = json.loads((release_dir / 'citations-complete.json').read_text()) if (release_dir / 'citations-complete.json').exists() else None
     supplement_marker = json.loads((release_dir / 'supplement-complete.json').read_text()) if (release_dir / 'supplement-complete.json').exists() else None
+    concept_marker = json.loads((release_dir / 'concepts-complete.json').read_text()) if (release_dir / 'concepts-complete.json').exists() else None
     burst_policy_hash = digest((Path(__file__).resolve().parents[1] / 'data/reference/snapshot-burst-policy-v1.json').read_bytes())
     report_config_hash = digest(json.dumps({'scan_config_sha256': provenance['config_sha256'],
         'report_source_sha256': report_source_hash, 'dimension_source_sha256': dimension_version,
         'extensions': extension_hashes, 'burst_policy': burst_policy_hash,
         'supplement': supplement_marker['config_sha256'] if supplement_marker else None,
+        'concepts': concept_marker['config_sha256'] if concept_marker else None,
         'citations': citation_marker['config_sha256'] if citation_marker else None}, sort_keys=True).encode())
     release_id = 'oa-' + oa_date + '-' + report_config_hash[:12]
     papers = json.loads((release_dir / 'rw_original.json').read_text())
@@ -196,6 +217,11 @@ def build(release_dir):
                     and 1 <= identity['publication_year'] <= int(oa_date[:4])
                     and (identity['publication_date'] is None or str(identity['publication_date']) <= oa_date)):
                 detailed_ids.append(identifier)
+        if identifiers:
+            for raw in pq.ParquetFile(shard / 'targets.parquet').read(columns=['id', 'primary_location.source.type']).to_pylist():
+                identity = identifiers[raw['id']]
+                if identity['is_xpac'] is False and identity['is_retracted'] is True:
+                    works[raw['id']]['source'] = (raw.get('primary_location') or {}).get('source') or {}
         if not detailed_ids:
             continue
         detailed_ids = pa.array(detailed_ids)
@@ -207,6 +233,8 @@ def build(release_dir):
                 topic = raw.get('primary_topic') or {}
                 source = (raw.get('primary_location') or {}).get('source') or {}
                 work = dict(identity, countries=modes, authors=authors, institutions=institutions,
+                    author_labels={(entry.get('author') or {}).get('id'): (entry.get('author') or {}).get('display_name')
+                        for entry in raw.get('authorships') or [] if (entry.get('author') or {}).get('id') in authors},
                     topic=topic, topics=raw.get('topics') or [], source=source, citations=raw.get('cited_by_count'),
                     observed_authors=len(raw.get('authorships') or []), authors_count=raw.get('authors_count'))
                 works[raw['id']] = work
@@ -289,11 +317,11 @@ def build(release_dir):
     common_scope = {'corpus': 'core', 'work_types': ['article'], 'publication_year_range': None,
                     'observation_cutoff': oa_date, 'attribution': 'unique_work', 'date_basis': 'oa_publication_year'}
     chapters = {section: [] for section in SECTIONS}
-    card_rows = [count_row('A0', 'A0 · core 标记 Work 记录', len(a0)),
-                 count_row('A1', 'A1 · core article 筛选后候选', len(a1)),
-                 count_row('B', 'B · RW 去重 Retraction 原论文', len(papers)),
-                 count_row('C', 'C · 高置信匹配 OA Work', len(matched_ids)),
-                 count_row('D', 'D · core article 发表候选', sum(value for (kind, year), value in denominators.items() if kind == 'article'))]
+    card_rows = [count_row('A0', '主体库中带撤稿标记的记录', len(a0), unit='records'),
+                 count_row('A1', '筛选后纳入分析的撤稿标记论文', len(a1)),
+                 count_row('B', 'Retraction Watch 记录的撤稿原论文', len(papers)),
+                 count_row('C', '与 OpenAlex 成功匹配的不同记录', len(matched_ids), unit='records'),
+                 count_row('D', '用作比较基数的同口径发表论文', sum(value for (kind, year), value in denominators.items() if kind == 'article'))]
     chapters['overview'].append(chart('population-accounting', 'mixed_diagnostic', 'work_count', card_rows,
         '研究覆盖了哪些记录？', '标记记录、RW 原论文和匹配作品各有多少？',
         scope={'corpus': 'mixed_see_cell_labels', 'work_types': ['mixed'], 'attribution': 'separate_population_counts'},
@@ -323,8 +351,28 @@ def build(release_dir):
             exclusions['retained_A1'] += 1
     if sum(exclusions.values()) != len(a0):
         raise ValueError('Role/type/date exclusions do not partition A0')
+    screening_rows = [dict(count_row(key, key, count, len(a0)), value=100*count/len(a0) if a0 else None, unit='percent')
+                      for key, count in exclusions.items()]
+    type_counts = Counter(works[identifier]['type'] or 'Unknown' for identifier in a0)
+    type_rows = [dict(count_row(kind, TYPE_NAMES.get(kind, kind), count, len(a0), work_type=kind,
+        pct_of_flagged=100*count/len(a0) if a0 else None,
+        journal_source_records=sum((works[identifier]['type'] or 'Unknown')==kind and works[identifier]['source'].get('type')=='journal' for identifier in a0),
+        default_included_records=sum(works[identifier]['type']==kind for identifier in a1)), unit='records')
+        for kind, count in type_counts.most_common()]
+    chapters['overview'].append(chart('screening', 'A0', 'paper_coverage_pct', screening_rows,
+        '从撤稿标记到论文样本：哪些记录被保留？', '为什么筛选后数量变少，而不是把所有标记当作撤稿原论文？',
+        scope=dict(common_scope, work_types=['all'], slice_id='A0-screening'), denominator=len(a0),
+        limitations=['依次检查文献类型、原论文/通知身份和日期；每条记录只归入一个分组，因此本图可加总为 100%。',
+            '疑似通知来自标题规则，并非逐篇裁定；默认排除，同时保留纳入它们的同口径敏感性计数。',
+            '减少的是默认研究样本范围，不是宣称被排除的记录都无效，也不是删除来源数据。']))
+    chapters['overview'].append(chart('work-types', 'A0', 'work_count', type_rows,
+        '文献类型与发表来源：article 和 journal 有什么不同？', '哪些被标记记录是研究论文、综述或通知，又有多少发表在期刊？',
+        scope=dict(common_scope, work_types=['all'], slice_id='A0-work-types'), denominator=len(a0),
+        limitations=['article/review/retraction 描述单条文献是什么；journal 描述发表它的来源是什么。期刊中的撤稿通知仍然是通知。',
+            '主分析选择 article 是为了比较相近的研究文献；review 另有独立统计。它不是“只有这些类型才会撤稿”的判断。',
+            '默认 article 样本没有排除 journal 来源；单独的期刊分析还要求主发表来源类型为 journal。']))
     chapters['quality'].append(chart('Q3', 'A0', 'work_count', top_rows(exclusions, total=len(a0)),
-        '从标记记录到 article 候选', '为什么标记数量不等于原论文数量？', scope=common_scope,
+        '从标记记录到研究论文候选', '为什么标记数量不等于原论文数量？', scope=dict(common_scope, work_types=['all']),
         denominator=len(a0), limitations=[LIMITATIONS['role'], '按作品类型→角色→日期的固定顺序互斥排除。']))
     quality_counts = Counter({'oa_flag_missing': sum(value for (corpus, flag), value in flag_counts.items() if flag is None),
                               'oa_corpus_unknown': corpus_counts['unknown'],
@@ -478,6 +526,22 @@ def build(release_dir):
             else:
                 bands = Counter('1' if count == 1 else '2' if count == 2 else '3–5' if count <= 5 else '6–10' if count <= 10 else '>10' for count in counts.values())
                 rows = [dict(count_row(band, band + ' 篇关联作品', bands[band], len(counts)), unit='authors') for band in ('1', '2', '3–5', '6–10', '>10')]
+                names = defaultdict(Counter)
+                for identifier in sorted(identifiers):
+                    for author_id, name in works[identifier].get('author_labels', {}).items():
+                        if name:
+                            names[author_id][name] += 1
+                ordered_authors = sorted(counts, key=lambda author_id: (-counts[author_id], author_id))[:20]
+                author_rows = [count_row(author_id, names[author_id].most_common(1)[0][0] if names[author_id] else '姓名缺失（见作者 ID）',
+                    counts[author_id], len(identifiers), rank=index, author_id=author_id,
+                    name_available=bool(names[author_id])) for index, author_id in enumerate(ordered_authors, 1)]
+                chapters['entities'].append(chart('author-top', population, 'linked_work_count', author_rows,
+                    population+' · 作者关联论文数 Top 20', '哪些 OpenAlex 作者身份关联了较多本研究中的论文？',
+                    scope=dict(population_scope, slice_id=population+'-author-top-20', attribution='distinct_work_per_author_id'),
+                    denominator=len(identifiers), missing=coverage['unknown_works'],
+                    limitations=['按 OpenAlex 作者 ID 去重，每位作者对同一篇论文只计一次；相同姓名不自动合并，不同作者可关联同一篇论文。',
+                        '这是署名关联表，不是不端行为或责任排名。作者消歧可能合并或拆分身份；不能仅凭排名作人物判断。',
+                        'Top 20 只限制展示，不重算论文基数；论文清单与原始署名数据不在此表发布。']))
             chapters['entities'].append(chart(chart_id, population, 'linked_work_count' if dimension == 'institutions' else 'author_repeat_band_count',
                 rows, population + (' · 直接署名机构关联' if dimension == 'institutions' else ' · 作者重复关联分布'),
                 '关联记录在研究实体之间如何分布？', scope=dict(population_scope, attribution='direct_work_' + dimension),
@@ -506,7 +570,7 @@ def build(release_dir):
         chapters['publishing'].append(chart('source-counts', population, 'linked_work_count', top_rows(sources, labels, len(identifiers), 50),
             population + ' · 主要发表来源关联', '记录关联哪些主要发表来源？', scope=dict(population_scope, attribution='primary_source'),
             denominator=len(identifiers), missing=len(identifiers) - sum(sources.values()),
-            limitations=['包含不同来源类型；未将所有仓储位置当作期刊。尚未发布来源发文分母，因此不能解释为期刊撤稿率。']))
+            limitations=['本图比较主发表来源的关联数量；没有把所有仓储位置算成期刊。需要比较比例时，请使用单独的期刊队列分析。']))
         citation_values = [works[identifier]['citations'] for identifier in identifiers if works[identifier]['citations'] is not None and works[identifier]['citations'] >= 0]
         bins = Counter('0' if value == 0 else '1–9' if value < 10 else '10–49' if value < 50 else '50–99' if value < 100 else '100+' for value in citation_values)
         citation_counts = Counter(citation_values)
@@ -698,6 +762,8 @@ def build(release_dir):
         chapters[section].extend(results)
     for section, results in extended_charts(papers, works, a1, by_work, oa_date, rw_date, chart, count_row).items():
         chapters[section].extend(results)
+    concept_results, concepts = concept_charts(release_dir, provenance, entries, works, {'A1': a1, 'C': set(by_work)}, oa_date, rw_date, chart, count_row)
+    chapters['fields'].extend(concept_results)
     unavailable = {
         'reasons': [],
         'fields': [] if dimension_rows else [('F3', '学科规模与比例', '学科分母未计算。'), ('F4', '数量与比例排名', '学科分母未计算。')],
@@ -720,6 +786,7 @@ def build(release_dir):
         'extension_source_sha256': extension_hashes,
         'burst_policy_sha256': burst_policy_hash,
         'supplement_scan': {key: supplement[key] for key in ('config_sha256', 'code_sha256', 'targets_sha256', 'files')} if supplement else None,
+        'concept_scan': {key: concepts[key] for key in ('config_sha256', 'code_sha256', 'files')} if concepts else None,
         'incoming_citation_scan': {key: incoming[key] for key in ('config_sha256', 'code_sha256', 'targets_sha256', 'files', 'targets', 'edges', 'citing_corpus')} if incoming else None,
         'schema_adapter_version': validation['schema_adapter_version'], 'role_policy_version': ROLE_POLICY,
         'reason_mapping_version': REASON_VERSION, 'country_attribution_mode': 'institution_country',
@@ -729,6 +796,7 @@ def build(release_dir):
                          'incoming_citations': bool(incoming), 'reason_families': True, 'publisher_rollups': publisher_ready,
                          'additional_denominators': bool(supplement), 'fixed_publication_followup': bool(supplement),
                          'monthly_descriptive_control': True, 'any_topic': True,
+                         'legacy_concepts': bool(concepts), 'author_top_table': True,
                          'historical_publisher_ownership': False, 'author_career': False,
                          'adjusted_or_causal_models': False, 'funding_exploration': False,
                          'self_citation_exclusion': False},
@@ -745,7 +813,7 @@ def build(release_dir):
         atomic_json(release_dir / 'citation-summary.json', incoming['summary'])
     if supplement:
         manifest['quality_gates']['supplement_reproduces_D_A1'] = True
-    for filename, captured in [('citations-complete.json', citation_marker), ('supplement-complete.json', supplement_marker)]:
+    for filename, captured in [('citations-complete.json', citation_marker), ('supplement-complete.json', supplement_marker), ('concepts-complete.json', concept_marker)]:
         path = release_dir / filename
         current = json.loads(path.read_text()) if path.exists() else None
         if (current or {}).get('config_sha256') != (captured or {}).get('config_sha256'):

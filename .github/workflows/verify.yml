@@ -20,5 +20,5 @@ jobs:
       - run: npm ci
       - run: python -m pip install -r pipeline/snapshot_requirements.txt
       - run: python -m unittest discover -s tests
-      - run: node --test tests/snapshot-schema.test.mjs
+      - run: node --test tests/snapshot-*.test.mjs
       - run: npm run build

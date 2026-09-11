@@ -31,6 +31,8 @@ Python 离线处理（原始 CSV / OpenAlex 缓存，仅本地或 Actions）
 
 后续交付已加入全库 incoming 引用边、C2–C4 日历窗口统计、版本化原因族、当前出版商/集团归属及补充分母。历史所有权、作者职业轨迹和调整/因果模型仍是独立可选研究，不从这些描述统计推断。
 
+阅读版新增数据来源与术语导读、互斥筛选数量/比例、文献类型与期刊来源交叉表、国家归属示例、作者 ID 关联 Top 20，以及独立的旧 Concepts 分类和覆盖率。章节采用单分析视图、目录与上一项/下一项导航；分享链接保留当前分析。详见[阅读版方法补充](docs/OPENALEX_SNAPSHOT_READER_REVISION.md)。
+
 - [OpenAlex Snapshot Analysis Spec v2](docs/OPENALEX_SNAPSHOT_ANALYSIS_SPEC.md)：区分标记记录与原论文候选、RW/OA 来源依赖、core/expansion 口径、国家归属、分子分母、匹配与日期、引用边、质量门槛和发布契约。
 - [Website Report Design](docs/WEBSITE_REPORT_DESIGN.md)：9 个报告章节、29 个独立分析图表规格、证据关联的数据解读、筛选联动、静态聚合数据契约、视觉与可访问性验收。
 - [快照运行说明](docs/OPENALEX_SNAPSHOT_RUNBOOK.md)：源校验、固定 RW 提交、并行分析、内存缓存、分母扫描、v3 聚合与原子发布。
@@ -49,7 +51,7 @@ npm run dev
 npm run build
 npm run preview
 python -m unittest discover -s tests
-node --test tests/snapshot-schema.test.mjs
+node --test tests/snapshot-*.test.mjs
 ```
 
 普通前端构建仅使用仓库内已经生成的统计数据，不需要 Python、OpenAlex 密钥或重新下载数据。前端只对聚合后的时间序列进行展示筛选、后向三年均值和格式化，不进行论文级全库扫描。

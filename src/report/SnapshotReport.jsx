@@ -1,10 +1,10 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import {validateManifest, validateChunk} from './schema.js';
+import ReportGuide from './ReportGuide.jsx';
+import {number, UNITS, POPULATIONS, WORK_TYPES, chartName, variantName, rowLabel, selectChart, chartMethod, insightText} from './reader.js';
 import './snapshot.css';
 
 const PAGES = {overview: '研究概览', time: '时间与观察期', fields: '学科与主题', reasons: '撤稿原因', geography: '地理与合作', entities: '机构与作者', publishing: '期刊与出版', citations: '引用与持续传播', quality: '数据与方法'};
-const number = value => value == null ? '未计算 / 缺失' : value !== 0 && Math.abs(value) < .001 ? value.toPrecision(2) : value.toLocaleString('zh-CN', {maximumFractionDigits: 3});
-const UNITS = {works: '篇作品', authors: '位作者', percent: '%', per_10k: '每万篇', years: '年', work_equivalents: '篇等价值', edges: '条引用边', edges_per_target: '条 / 合格目标'};
 
 function readRoute() {
   const [route, query = ''] = window.location.hash.slice(1).split('?');
@@ -49,6 +49,9 @@ function Plot({chart}) {
   const valid = chart.rows.filter(row => row.value !== null);
   if (!valid.length) return <p>该切片没有可绘制的数值；请查看缺失说明。</p>;
   if (chart.chart_id === 'population-accounting') return <div className="snapshot-populations">{valid.map(row => <div key={row.id}><span>{row.label}</span><strong>{number(row.value)}</strong><small>独立口径 · 不与其他卡片相加</small></div>)}</div>;
+  if (chart.chart_id === 'screening') return <div className="snapshot-table" tabIndex={0}><table><caption>每条标记记录只进入一个分组；数量之和等于筛选前总数。</caption><thead><tr><th scope="col">筛选结果</th><th scope="col">记录数</th><th scope="col">占筛选前比例</th></tr></thead><tbody>{chart.rows.map(row => <tr key={row.id}><th scope="row">{row.label}</th><td>{number(row.numerator)}</td><td>{number(row.value)}%</td></tr>)}</tbody></table></div>;
+  if (chart.chart_id === 'work-types') return <div className="snapshot-table" tabIndex={0}><table><caption>文献类型与来源类型交叉核对。“来自期刊”不是“已经通过原论文身份筛选”。</caption><thead><tr>{['文献类型', '带标记记录', '占全部标记', '其中主来源为期刊', '默认样本保留'].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{chart.rows.map(row => <tr key={row.id}><th scope="row">{row.label}<small className="snapshot-code-note">{row.work_type}</small></th><td>{number(row.numerator)}</td><td>{number(row.pct_of_flagged)}%</td><td>{number(row.journal_source_records)}</td><td>{number(row.default_included_records)}</td></tr>)}</tbody></table></div>;
+  if (chart.chart_id === 'author-top') return <div className="snapshot-table" tabIndex={0}><table><caption>按不同关联论文数降序，同数按作者 ID 排序；这是署名关联，不是责任排名。</caption><thead><tr><th scope="col">顺序</th><th scope="col">OpenAlex 作者身份</th><th scope="col">关联论文数</th></tr></thead><tbody>{chart.rows.map(row => <tr key={row.id}><td>{row.rank}</td><th scope="row">{row.label}<small className="snapshot-code-note">{/^https:\/\/openalex.org\/A[1-9][0-9]*$/.test(row.author_id) ? <a href={row.author_id} target="_blank" rel="noreferrer" aria-label={`查看 ${row.label} 的 OpenAlex 身份 ${row.author_id.split('/').at(-1)}`}>{row.author_id.split('/').at(-1)} ↗</a> : '身份链接不可用'}</small></th><td>{number(row.numerator)}</td></tr>)}</tbody></table></div>;
   if (chart.chart_id === 'annual-growth') return <div className="snapshot-table" tabIndex={0}><table><thead><tr>{['年份', '当前数量', '前期基数', '同比 %', '解释状态'].map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{chart.rows.map(row => <tr key={row.id}><th scope="row">{row.label}</th><td>{number(row.numerator)}</td><td>{number(row.denominator)}</td><td>{number(row.value)}</td><td>{row.partial ? '年度未完整' : row.small_base ? '小基数 / 未定义' : '完整年度记录'}</td></tr>)}</tbody></table></div>;
   if (chart.control_policy) {
     const maximum = Math.max(...chart.rows.flatMap(row => [row.value, row.threshold]), 1);
@@ -110,30 +113,35 @@ function Plot({chart}) {
 
 function ChartCard({chart}) {
   const [metric, setMetric] = useState('linked_work_count');
-  const active = chart.chart_id === 'G1' && chart.association_summary && metric !== 'linked_work_count' ? {...chart,
+  const transformed = chart.chart_id === 'G1' && chart.association_summary && metric !== 'linked_work_count' ? {...chart,
     metric_id: metric, title: `${chart.title} · ${metric}`,
     rows: chart.rows.map(row => ({...row, value: row[metric],
       unit: metric === 'fractional_work_count' ? 'work_equivalents' : 'percent',
       numerator: metric.startsWith('fractional') ? row.fractional_work_count : row.numerator,
       denominator: metric === 'association_share_pct' ? chart.association_summary.association_total : metric.startsWith('fractional') ? chart.association_summary.known_works : row.denominator})),
     insights: []} : chart;
+  const active = {...transformed, rows: transformed.rows.map(row => ({...row, label: rowLabel(row, chart)}))};
+  const method = chartMethod(active);
   const columns = [...new Set(active.rows.flatMap(row => Object.keys(row)))];
   return <article className="snapshot-card" id={`${chart.chart_id}-${chart.slice_id}`}>
-    <p className="snapshot-question">{chart.chart_id} · {chart.question}</p><h2>{active.title}</h2>
-    <div className="snapshot-scope"><span>总体 {chart.population_key}</span><span>{chart.scope.corpus} · {chart.scope.work_types.join(' + ')}</span><span>{chart.scope.attribution}</span><span>观察截止 {chart.metric_observation_cutoff}</span><span>指标 {active.metric_id}</span></div>
+    <p className="snapshot-question">{chart.question}</p><h2>{chartName(active)}</h2><p className="snapshot-variant-name">{variantName(active)}</p>
+    <div className="snapshot-scope"><span>{POPULATIONS[chart.population_key] || '本图研究范围'}</span><span>{chart.scope.corpus === 'core' ? 'OpenAlex 主体库' : chart.scope.corpus === 'rw' ? 'Retraction Watch 记录' : '范围分别说明'} · {chart.scope.work_types.map(type => WORK_TYPES[type] || type).join(' + ')}</span><span>观察截止 {chart.metric_observation_cutoff}</span></div>
+    <div className="snapshot-method-brief"><h3>这张图怎样计算</h3><p>{method[0]}</p><details><summary>原理、选择与限制</summary>{method.slice(1).map(text => <p key={text}>{text}</p>)}</details></div>
     {chart.status !== 'ready' ? <p className="snapshot-unavailable" role="status">尚未计算：{chart.unavailable_reason}</p> : <>
       {chart.chart_id === 'G1' && chart.association_summary && <label>本图计数方式 <select value={metric} onChange={event => setMetric(event.target.value)}>{[['linked_work_count', '关联作品数'], ['paper_coverage_pct', '论文覆盖比例'], ['association_share_pct', '关联份额'], ['fractional_work_count', '已知成员分数计数'], ['fractional_share_pct', '已知成员分数份额']].map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>}
-      <div className="snapshot-insight"><h3>数据观察</h3>{active.insights.length ? active.insights.map(insight => <p key={insight.insight_id}>{insight.text}</p>) : active !== chart && active.rows.length ? <p>当前切片有 {active.rows.length} 个聚合单元；首个单元 {active.rows[0]?.label} 为 {number(active.rows[0]?.value)} {UNITS[active.rows[0]?.unit] || active.rows[0]?.unit}。切换计数方式改变分配与分母，不新增作品。</p> : <p>该切片没有达到展示条件的数值。请查看缺失、分母和有效样本量；此状态不等于观测零。</p>}</div>
+      <div className="snapshot-insight"><h3>从数据中读到什么</h3>{active.insights.length ? active.insights.map(insight => <p key={insight.insight_id}>{insightText(insight, active)}</p>) : transformed !== chart && active.rows.length ? <p>当前计数口径下，{active.rows[0]?.label} 为 {number(active.rows[0]?.value)} {UNITS[active.rows[0]?.unit] || active.rows[0]?.unit}。这仍是同一批论文；改变的是如何分配关联和选择基数，不是新增论文。</p> : <p>该分析没有达到展示条件的数值。请查看缺失、比较基数和有效样本量；这不等于观测到零。</p>}</div>
       <Plot chart={active}/>
       {chart.post_retraction_citation_ratio && <p className="snapshot-caption">时间可判定的观测引用边中，撤稿后比例：{number(chart.post_retraction_citation_ratio.value == null ? null : 100 * chart.post_retraction_citation_ratio.value)}%；after={number(chart.post_retraction_citation_ratio.numerator)} / (before+after)={number(chart.post_retraction_citation_ratio.denominator)}。</p>}
       {chart.chart_id === 'C2' && <p className="snapshot-caption">每个相对年度的合格目标 N：{chart.rows.map(row => `${row.label}: ${number(row.denominator)}`).join('；')}。</p>}
       {(chart.citation_quality || chart.static_count_audit || chart.raw_to_family_mapping) && <details><summary>查看来源覆盖与映射审计</summary><pre>{JSON.stringify(chart.citation_quality || chart.static_count_audit || chart.raw_to_family_mapping, null, 2)}</pre></details>}
-      <p className="snapshot-caption">适用总体 N：{number(chart.quality.eligible_works)}；缺失：{number(chart.quality.missing_works)}。Top-N 展示不重算分母；未完整年度与小基数不用于风险排名。</p>
+      <p className="snapshot-caption">{chart.quality.eligible_works == null ? '各项统计范围分别说明。' : `本图研究范围：${number(chart.quality.eligible_works)}；其中相关信息缺失：${number(chart.quality.missing_works)}。`}只展示前若干项时，比较基数不会随之缩小。</p>
+      {chart.concept_coverage && <p className="snapshot-caption">有该层旧标签的论文 {number(chart.concept_coverage.known_works)} 篇；缺少该层标签 {number(chart.concept_coverage.missing_works)} 篇。共涉及 {number(chart.concept_coverage.distinct_concepts)} 个概念，聚合表保留前 {number(chart.concept_coverage.displayed_concepts)} 个；图中显示其中前 15 个。</p>}
       {chart.outside_display_range_works != null && <p className="snapshot-caption">另有 {number(chart.outside_display_range_works)} 篇位于展示年份之前，保留在总体核算中。</p>}
       {chart.quantiles && <p className="snapshot-caption">分位数：{Object.entries(chart.quantiles).map(([key, value]) => `${key}=${number(value)}`).join(' · ')}（分布统计，不是置信区间）</p>}
       {chart.gini != null && <p className="snapshot-caption">Gini：{number(chart.gini)}；HHI：{number(chart.hhi)}。虚线为均等关联份额参考线。</p>}
       {chart.zero_citation_works != null && <p className="snapshot-caption">其中零引用 {number(chart.zero_citation_works)} 篇；这是观测零，不是引用字段缺失。</p>}
       <details><summary>查看完整聚合数据与计算方法</summary><p>方法：{chart.methods_version}；OA {chart.oa_snapshot_date} / RW {chart.rw_snapshot_date}。比例由行内 n/N 复算；每万篇比例为 10,000 × n/N。分数权重按筛选前的已知成员集合计算。</p><div className="snapshot-table" tabIndex={0}><table><thead><tr>{columns.map(column => <th scope="col" key={column}>{column}</th>)}</tr></thead><tbody>{active.rows.map(row => <tr key={row.id}>{columns.map(column => <td key={column}>{row[column] == null ? '—' : typeof row[column] === 'number' ? number(row[column]) : String(row[column])}</td>)}</tr>)}</tbody></table></div><Export chart={active}/></details>
+      <details><summary>技术标识与精确统计范围（供复核）</summary><pre>{JSON.stringify({chart_id: chart.chart_id, slice_id: chart.slice_id, population_key: chart.population_key, metric_id: active.metric_id, scope: chart.scope, release_id: chart.release_id}, null, 2)}</pre></details>
     </>}
     <div className="snapshot-boundary"><h3>解释边界</h3>{chart.limitations.map(text => <p key={text}>{text}</p>)}</div>
   </article>;
@@ -142,6 +150,8 @@ function ChartCard({chart}) {
 export default function SnapshotReport() {
   const [route, setRoute] = useState(readRoute), [manifest, setManifest] = useState(null), [state, setState] = useState({key: '', charts: null, error: null});
   const [manifestError, setManifestError] = useState(null);
+  const [shareStatus, setShareStatus] = useState('');
+  const headingRef = useRef(null), analysisRef = useRef(null);
   useEffect(() => {const change = () => setRoute(readRoute()); window.addEventListener('hashchange', change); return () => window.removeEventListener('hashchange', change);}, []);
   useEffect(() => {const controller = new AbortController(); checkedJSON(`${import.meta.env.BASE_URL}data/snapshot/manifest.json`, controller.signal).then(validateManifest).then(setManifest).catch(error => {if (error.name !== 'AbortError') setManifestError(error.message);}); return () => controller.abort();}, []);
   useEffect(() => {
@@ -155,23 +165,40 @@ export default function SnapshotReport() {
     return () => controller.abort();
   }, [manifest, route.page]);
   const current = state.key === route.page ? state : {charts: null, error: null};
-  const selected = current.charts?.filter(chart => !route.slice || `${chart.chart_id}/${chart.slice_id}` === route.slice);
-  const featuredIds = new Set();
-  const featured = (selected || []).filter(chart => {
-    if (route.slice) return true;
-    if (featuredIds.has(chart.chart_id) || featuredIds.size >= 4) return false;
-    featuredIds.add(chart.chart_id); return true;
-  });
-  const additional = (selected || []).filter(chart => !featured.includes(chart));
+  const selected = selectChart(current.charts || [], route.slice);
+  const position = current.charts?.indexOf(selected) ?? -1;
+  const groups = new Map();
+  for (const chart of current.charts || []) {
+    if (!groups.has(chart.chart_id)) groups.set(chart.chart_id, []);
+    groups.get(chart.chart_id).push(chart);
+  }
   const changeSlice = value => {window.location.hash = `/snapshot/${route.page}${value ? '?slice=' + encodeURIComponent(value) : ''}`;};
+  const choose = chart => {if (chart) changeSlice(`${chart.chart_id}/${chart.slice_id}`);};
+  useEffect(() => {
+    if (!current.charts) return;
+    setShareStatus('');
+    if (route.slice) {
+      analysisRef.current?.focus({preventScroll: true});
+      analysisRef.current?.scrollIntoView({block: 'start', behavior: 'instant'});
+    } else {
+      headingRef.current?.focus({preventScroll: true});
+      window.scrollTo({top: 0, behavior: 'instant'});
+    }
+  }, [route.page, route.slice, current.charts]);
   return <div className="snapshot-app"><header className="snapshot-header"><a href="#">← 当前 RW 报告</a><span>Scholarly Retraction Observatory</span><a href="#/snapshot/quality">数据与方法</a></header><div className="snapshot-layout"><nav aria-label="快照报告章节"><h2>快照联合研究报告</h2>{Object.entries(PAGES).map(([key, label]) => <a key={key} href={`#/snapshot/${key}`} aria-current={route.page === key ? 'page' : undefined}>{label}</a>)}</nav><main>
-    <p className="snapshot-eyebrow">SNAPSHOT RESEARCH · 独立于原 RW 报告</p><h1>{PAGES[route.page]}</h1>
-    {manifest && <><p className="snapshot-caption">OA 快照 {manifest.oa_snapshot_date} · RW {manifest.rw_snapshot_date} · {manifest.release_id}</p><p>本次提供描述性联合报告与发表年队列比例。学科/实体发文分母、原因族与引用事件时间模块按各自能力状态显示。</p><p className="snapshot-provenance">来源采用项目负责人批准的回溯验证：清单、文件、schema 和 ID 检查通过；下载前清单及传输时间日志未保存。</p></>}
+    <p className="snapshot-eyebrow">OPENALEX × RETRACTION WATCH</p><h1 ref={headingRef} tabIndex={-1}>{PAGES[route.page]}</h1>
+    {manifest && <><p className="snapshot-caption">OpenAlex 文献快照：{manifest.oa_snapshot_date} · Retraction Watch 记录截至：{manifest.rw_snapshot_date}</p><details className="snapshot-source-audit"><summary>数据版本与来源审计</summary><p>报告版本：{manifest.release_id}。{manifest.source_acceptance_policy === 'retrospective-v1' ? '本地清单、文件和身份检查通过；项目接受回溯验证，但下载前清单及传输时间日志没有保存，不能补造这些历史证据。' : '来源检查结果保存在报告的可复核清单中。'}</p><a href="#/snapshot/quality">查看数据质量与方法</a></details></>}
     {route.error && <p role="alert" className="snapshot-unavailable">{route.error}；已显示明确的默认章节。</p>}
     {manifestError || current.error ? <p role="alert">{manifestError || current.error}。未显示旧版数据；请重新加载。</p> : !current.charts ? <p role="status">正在验证并加载本章聚合数据…</p> : <>
-      <div className="snapshot-controls"><label>已预计算切片 <select value={route.slice} onChange={event => changeSlice(event.target.value)}><option value="">本章全部已发布切片</option>{current.charts.map(chart => <option key={`${chart.chart_id}/${chart.slice_id}`} value={`${chart.chart_id}/${chart.slice_id}`}>{chart.chart_id} · {chart.slice_id}</option>)}{route.slice && !selected.length && <option value={route.slice}>未支持：{route.slice}</option>}</select></label><button onClick={() => changeSlice('')}>重置</button><button onClick={() => {navigator.clipboard?.writeText(window.location.href).catch(() => {});}}>复制当前视图链接</button></div>
-      {!selected.length ? <p role="status" className="snapshot-unavailable">该组合未预计算；这不表示没有撤稿。请选择列表中的切片。</p> : featured.map(chart => <ChartCard key={`${chart.chart_id}/${chart.slice_id}`} chart={chart}/>)}
-      {additional.length > 0 && <details key={route.page} className="snapshot-additional"><summary>更多已计算切片与敏感性分析（{additional.length}）</summary>{additional.map(chart => <ChartCard key={`${chart.chart_id}/${chart.slice_id}`} chart={chart}/>)}</details>}
+      <ReportGuide page={route.page} charts={current.charts}/>
+      {route.page === 'overview' && <nav className="snapshot-entry-tabs" aria-label="概览阅读入口">{['population-accounting', 'screening', 'work-types'].map(identifier => <button key={identifier} onClick={() => choose(current.charts.find(chart => chart.chart_id === identifier))}>{chartName({chart_id: identifier})}</button>)}</nav>}
+      {route.page === 'fields' && <nav className="snapshot-entry-tabs" aria-label="选择学科分类体系"><button onClick={() => choose(current.charts.find(chart => chart.chart_id === 'F1'))}>Topics：现行主题分类</button><button onClick={() => choose(current.charts.find(chart => chart.chart_id === 'concepts' && chart.population_key === 'C') || current.charts.find(chart => chart.chart_id === 'concepts'))}>Concepts：旧学科分类</button><button onClick={() => choose(current.charts.find(chart => chart.chart_id === 'concepts-coverage' && chart.population_key === 'C'))}>旧分类覆盖率</button></nav>}
+      {route.page === 'entities' && <nav className="snapshot-entry-tabs" aria-label="机构与作者入口"><button onClick={() => choose(current.charts.find(chart => chart.chart_id === 'E1'))}>机构关联</button><button onClick={() => choose(current.charts.find(chart => chart.chart_id === 'author-top' && chart.population_key === 'C'))}>作者 Top 20 表</button><button onClick={() => choose(current.charts.find(chart => chart.chart_id === 'E2'))}>作者重复关联分布</button></nav>}
+      <div className="snapshot-controls"><label>选择本章分析 <select value={route.slice || (selected ? `${selected.chart_id}/${selected.slice_id}` : '')} onChange={event => changeSlice(event.target.value)}>{current.charts.map(chart => <option key={`${chart.chart_id}/${chart.slice_id}`} value={`${chart.chart_id}/${chart.slice_id}`}>{chartName(chart)} — {variantName(chart)}</option>)}{route.slice && !selected && <option value={route.slice}>未支持的分析</option>}</select></label><button onClick={() => changeSlice('')}>重置</button><button onClick={async () => {try {await navigator.clipboard.writeText(window.location.href); setShareStatus('链接已复制，包含当前分析选择。');} catch {setShareStatus('无法自动复制，请复制浏览器地址栏中的链接。');}}}>复制当前分析链接</button><span role="status">{shareStatus}</span></div>
+      <div className="snapshot-analysis-layout"><nav className="snapshot-analysis-index" aria-label="本章分析目录"><h2>本章目录</h2><p>选择一个问题阅读，不必向下寻找长图表。</p>{[...groups].map(([identifier, charts]) => <details key={identifier} open={selected?.chart_id === identifier}><summary>{chartName(charts[0])}</summary>{charts.map(chart => <a key={chart.slice_id} href={`#/snapshot/${route.page}?slice=${encodeURIComponent(`${chart.chart_id}/${chart.slice_id}`)}`} aria-current={selected === chart ? 'true' : undefined}>{variantName(chart)}</a>)}</details>)}</nav><section className="snapshot-analysis-panel" ref={analysisRef} tabIndex={-1} aria-label="当前分析">
+      {selected && <div className="snapshot-pagination"><button disabled={position <= 0} onClick={() => choose(current.charts[position - 1])}>← 上一项分析</button><span>{position + 1} / {current.charts.length}</span><button disabled={position >= current.charts.length - 1} onClick={() => choose(current.charts[position + 1])}>下一项分析 →</button></div>}
+      {!selected ? <p role="status" className="snapshot-unavailable">该组合未预计算；这不表示没有撤稿。请选择列表中的切片。</p> : <ChartCard key={`${selected.chart_id}/${selected.slice_id}`} chart={selected}/>}
+      </section></div>
       {route.page === 'quality' && <details><summary>完整来源与质量门槛</summary><pre>{JSON.stringify(manifest, null, 2)}</pre></details>}
     </>}
     <footer>仅导出已发布的聚合单元；国家、机构、作者或来源关联均不等于不端责任。</footer>
