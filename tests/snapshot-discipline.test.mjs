@@ -9,8 +9,8 @@ const manifest = JSON.parse(readFileSync('public/data/snapshot/manifest.json'));
 const fields = JSON.parse(readFileSync('public/data/snapshot/fields.json'));
 const data = validateChunk(fields, manifest, 'fields').discipline_explorer;
 
-test('all three two-level systems have complete indexes without Top N truncation', () => {
-  for (const [identifier, roots, children] of [['subjects', 7, 130], ['topics', 26, 252], ['concepts', 19, 284]]) {
+test('all three classification systems have complete indexes without Top N truncation', () => {
+  for (const [identifier, roots, children] of [['subjects', 7, 130], ['topics', data.taxonomies[1].levels.length === 4 ? 4 : 26, data.taxonomies[1].levels.length === 4 ? 26 : 252], ['concepts', 19, 284]]) {
     const taxonomy = data.taxonomies.find(taxonomy => taxonomy.id === identifier);
     assert.equal(taxonomy.nodes.filter(node => node.level === 0 && !node.missing && !node.navigation_only).length, roots);
     assert.equal(taxonomy.nodes.filter(node => node.level === 1 && !node.missing).length, children);

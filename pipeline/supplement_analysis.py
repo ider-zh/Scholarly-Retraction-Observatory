@@ -1,6 +1,6 @@
 """Verified finite presets for additional denominator and followup analyses."""
 
-from collections import Counter
+from collections import Counter, defaultdict
 import json
 from pathlib import Path
 
@@ -8,9 +8,11 @@ import duckdb
 
 from .snapshot import cohort_rate
 from .validate_snapshot import digest
+from .work_policy import is_broad
 
 
 def build_charts(release_dir, provenance, entries, denominators, flagged, oa_date, chart, count_row):
+    broad = is_broad(provenance)
     marker_path = Path(release_dir)/'supplement-complete.json'
     if not marker_path.exists():
         return {}, None
@@ -41,11 +43,11 @@ def build_charts(release_dir, provenance, entries, denominators, flagged, oa_dat
     names = {'oa_status': '原论文快照 OA 状态', 'language': '元数据语言', 'observed_team_band': '已观察作者列表规模', 'authorship_audit': '作者列表截断与计数核对'}
     scope = {'corpus': 'core', 'work_types': ['article'], 'publication_year_range': [2000, int(oa_date[:4])],
              'observation_cutoff': oa_date, 'attribution': 'unique_work'}
-    population_total = sum(count for (kind, year), count in denominators.items() if kind == 'article' and year >= 2000)
+    population_total = sum(count for (kind, year), count in denominators.items() if (broad or kind == 'article') and year >= 2000)
     for dimension in names:
         grouped = Counter()
         for key, group, kind, year, total, count, recorded in rows:
-            if key == dimension and kind == 'article' and year >= 2000:
+            if key == dimension and (broad or kind == 'article') and year >= 2000:
                 grouped[(group, 'N')] += total
                 grouped[(group, 'A1')] += count
         keys = sorted({key for key, metric in grouped})
@@ -68,13 +70,19 @@ def build_charts(release_dir, provenance, entries, denominators, flagged, oa_dat
                 '未调整发表年代或学科；语言仅展示按 D 规模前 20 及 Unknown，展示选择不重算分母。']))
     for years in (1, 3, 5):
         cells = []
+        yearly = defaultdict(Counter)
         for key, group, kind, year, total, count, recorded in sorted(rows):
-            if key != 'fixed_window' or group != str(years) or kind != 'article' or year < 2000:
+            if key != 'fixed_window' or group != str(years) or (not broad and kind != 'article') or year < 2000:
                 continue
             if recorded > total:
                 raise ValueError('Fixed-window numerator exceeds eligible cohort')
+            yearly[year]['total'] += total
+            yearly[year]['recorded'] += recorded
+            yearly[year]['excluded'] += denominators[(kind, year)] - total
+        for year, values in sorted(yearly.items()):
+            total, recorded = values['total'], values['recorded']
             cells.append(dict(count_row(str(year), str(year), recorded, total), **cohort_rate(recorded, total),
-                unit='per_10k', year=year, excluded_missing_date_or_short_followup=denominators[(kind, year)]-total))
+                unit='per_10k', year=year, excluded_missing_date_or_short_followup=values['excluded']))
         charts['time'].append(chart('T3', 'C_D_over_D', 'rw_recorded_cohort_per_10k', cells,
             f'发表后 {years} 年内的 RW 记录比例', '具备完整发表后观察窗的 OA 队列中，多少原论文被 RW 记录撤稿？',
             scope=dict(scope, slice_id=f'C_D-fixed-publication-{years}y', followup_years=years,

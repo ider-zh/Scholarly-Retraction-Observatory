@@ -1,0 +1,17 @@
+.snapshot-app .lag-summary {margin:24px 0;}
+.snapshot-app .lag-heading,.snapshot-app .lag-milestones > button {display:grid;grid-template-columns:160px minmax(0,1fr) 130px;gap:24px;align-items:center;}
+.snapshot-app .lag-heading {font-size:12px;color:var(--report-muted);margin:28px 0 12px;}
+.snapshot-app .lag-heading > :last-child {text-align:right;}
+.snapshot-app .lag-milestones > button {width:100%;padding:18px 0;text-align:left;border:0;border-bottom:1px solid var(--report-rule);border-radius:0;background:transparent;}
+.snapshot-app .lag-label,.snapshot-app .lag-value {display:grid;gap:4px;}
+.snapshot-app .lag-label strong {font-size:18px;}
+.snapshot-app .lag-value {text-align:right;}
+.snapshot-app .lag-value strong {font-size:18px;white-space:nowrap;}
+.snapshot-app .lag-milestones small {font-size:12px;color:var(--report-muted);}
+.snapshot-app .lag-track {height:20px;background:#f0f3f2;}
+.snapshot-app .lag-track > span {height:100%;display:block;background:#71888d;}
+.snapshot-app .lag-median .lag-track > span {background:var(--report-accent);}
+.snapshot-app .lag-milestones > button[aria-pressed=true] {background:#f1f7f5;}
+.snapshot-app .lag-explanation {padding:16px;background:#f1f7f5;margin-top:20px!important;}
+.snapshot-app .lag-advanced {margin-top:20px;}
+@media(max-width:600px){.snapshot-app .lag-heading{display:none;}.snapshot-app .lag-milestones > button{grid-template-columns:minmax(0,1fr) auto;gap:12px;}.snapshot-app .lag-track{grid-column:1 / -1;grid-row:2;}.snapshot-app .lag-value{grid-column:2;grid-row:1;}}

@@ -1,4 +1,4 @@
-"""Resumable article denominators and flagged counts for two-level taxonomies."""
+"""Resumable article denominators for four-level Topics and two-level Concepts."""
 
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -11,11 +11,13 @@ import time
 import duckdb
 
 from .validate_snapshot import atomic_json, digest, now
+from .work_policy import is_broad
 
 
 def run(release_dir, workers=6, threads=8, memory_limit='32GB'):
     release_dir = Path(release_dir)
     provenance = json.loads((release_dir/'provenance.json').read_text())
+    broad = is_broad(provenance)
     validation_path = Path(provenance['validation_report'])
     validation = json.loads(validation_path.read_text())
     root = Path(validation['snapshot_dir'])
@@ -26,7 +28,7 @@ def run(release_dir, workers=6, threads=8, memory_limit='32GB'):
     if scan['config_sha256'] != provenance['config_sha256'] or scan['files'] != len(entries):
         raise ValueError('Canonical scan mismatch')
     code_hash = digest(Path(__file__).read_bytes())
-    config = {'version': 'taxonomy-cohorts-v1', 'code_sha256': code_hash, 'scan_config_sha256': provenance['config_sha256']}
+    config = {'version': 'taxonomy-cohorts-v2', 'code_sha256': code_hash, 'scan_config_sha256': provenance['config_sha256']}
     config_hash = digest(json.dumps(config, sort_keys=True).encode())
     output = release_dir/'taxonomy'/config_hash
     output.mkdir(parents=True, exist_ok=True)
@@ -57,19 +59,22 @@ def run(release_dir, workers=6, threads=8, memory_limit='32GB'):
             SELECT source_work.id, source_work.is_retracted,
                 CASE WHEN source_work.publication_year < 2000 THEN 0 ELSE source_work.publication_year END AS year,
                 source_work.primary_topic.field.id AS field_id, source_work.primary_topic.subfield.id AS subfield_id,
+                source_work.primary_topic.domain.id AS domain_id, source_work.primary_topic.id AS topic_id,
                 list_distinct(list_transform(list_filter(source_work.concepts, concept -> concept.level IN (0,1)
                     AND regexp_full_match(concept.id, 'https://openalex[.]org/C[1-9][0-9]*')),
                     concept -> struct_pack(id := concept.id, level := concept.level))) AS concepts
             FROM source_work LEFT JOIN identities USING(id)
-            WHERE source_work.is_xpac IS FALSE AND source_work.type='article'
+            WHERE source_work.is_xpac IS FALSE AND ({'TRUE' if broad else 'FALSE'} OR source_work.type='article')
                 AND source_work.publication_year BETWEEN 1 AND {int(cutoff[:4])}
                 AND (source_work.publication_date IS NULL OR source_work.publication_date <= DATE '{cutoff}')
-                AND coalesce(identities.document_role, CASE WHEN regexp_matches(coalesce(source_work.title, ''),
+                AND coalesce(identities.document_role, CASE WHEN {'TRUE' if broad else 'FALSE'} THEN 'unresolved' WHEN regexp_matches(coalesce(source_work.title, ''),
                     '(?i)^\\s*(retraction\\b|retracted\\b|withdrawal notice\\b|correction\\b|erratum\\b|corrigendum\\b|expression of concern\\b)')
                     THEN 'suspected_notice' ELSE 'unresolved' END) IN ('original_supported','unresolved')''')
         query = '''SELECT 'scope' AS dimension, 'all' AS group_id, year,
                 count(*)::BIGINT AS denominator, count_if(is_retracted IS TRUE)::BIGINT AS flagged
             FROM eligible GROUP BY ALL
+            UNION ALL SELECT 'domain', coalesce(domain_id, 'unknown'), year, count(*)::BIGINT, count_if(is_retracted IS TRUE)::BIGINT FROM eligible GROUP BY ALL
+            UNION ALL SELECT 'topic', coalesce(topic_id, 'unknown'), year, count(*)::BIGINT, count_if(is_retracted IS TRUE)::BIGINT FROM eligible GROUP BY ALL
             UNION ALL SELECT 'field', coalesce(field_id, 'unknown'), year, count(*)::BIGINT, count_if(is_retracted IS TRUE)::BIGINT FROM eligible GROUP BY ALL
             UNION ALL SELECT 'subfield', coalesce(subfield_id, 'unknown'), year, count(*)::BIGINT, count_if(is_retracted IS TRUE)::BIGINT FROM eligible GROUP BY ALL
             UNION ALL SELECT 'concept' || CAST(concept.level AS VARCHAR), concept.id, year, count(*)::BIGINT, count_if(is_retracted IS TRUE)::BIGINT

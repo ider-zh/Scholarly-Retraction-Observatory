@@ -2,7 +2,7 @@ export function plotKind(chart) {
   if (chart.control_policy) return 'control';
   if (['R4', 'P3'].includes(chart.chart_id)) return 'interval';
   if (['F3', 'P1'].includes(chart.chart_id)) return 'scatter';
-  if (['T1', 'T3', 'T4', 'E3', 'C1', 'C2', 'discipline-time'].includes(chart.chart_id)) return 'line';
+  if (['T1', 'T3', 'T4', 'E3', 'C1', 'C2', 'discipline-time', 'country-time'].includes(chart.chart_id)) return 'line';
   return null;
 }
 
@@ -24,4 +24,9 @@ export function lineSegments(rows) {
     segments.at(-1).push(row);
   }
   return segments;
+}
+
+export function plotMaximum(chart, rows) {
+  const maximum = Math.max(0, ...rows.flatMap(row => [row.value, row.threshold || 0, row.p75 || 0]));
+  return chart.metric_id === 'proportion' && maximum > 0 ? maximum : Math.max(1, maximum);
 }

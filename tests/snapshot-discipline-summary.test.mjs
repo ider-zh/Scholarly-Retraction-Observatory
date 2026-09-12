@@ -6,20 +6,24 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {createServer} from 'vite';
 import {resolveStudy} from '../src/report/discipline.js';
 
-const data = JSON.parse(readFileSync('public/data/snapshot/fields.json')).discipline_explorer;
+const data = decodeExplorer(JSON.parse(readFileSync('public/data/snapshot/fields.json')).discipline_explorer);
 
 test('node summary distinguishes sample coverage from publication proportion and keeps missing distinct from zero', async () => {
   const server = await createServer({server: {middlewareMode: true}, appType: 'custom'});
   try {
     const {default: Summary} = await server.ssrLoadModule('/src/report/DisciplineSummary.jsx');
     const render = study => renderToStaticMarkup(React.createElement(Summary, {study, populationLabel: study.population, cutoff: data.oa_cutoff}));
-    for (const [taxonomy, node, numerator, denominator, share, percent] of [
-      ['topics', 'https://openalex.org/subfields/2746', '1,511', '4,172,308', '3.002%', '0.036215%'],
-      ['concepts', 'https://openalex.org/C71924100', '20,722', '54,171,563', '41.171%', '0.038253%'],
+    for (const [taxonomy, node] of [
+      ['topics', 'https://openalex.org/subfields/2746'],
+      ['concepts', 'https://openalex.org/C71924100'],
     ]) for (const metric of ['count', 'share', 'rate']) {
       const study = resolveStudy(data, ['oa'], {taxonomy, node, metric});
+      const total = study.taxonomy.counts.A1[0], count = study.node.counts.A1[0], base = study.node.denominator[0];
+      const numerator = count.toLocaleString('zh-CN'), denominator = base.toLocaleString('zh-CN');
+      const share = (100 * count / total).toLocaleString('zh-CN', {maximumFractionDigits: 3}) + '%';
+      const percent = (100 * count / base).toLocaleString('zh-CN', {maximumFractionDigits: 6}) + '%';
       const html = render(study);
-      assert(html.includes(`${numerator} ÷ 50,331 × 100%`));
+      assert(html.includes(`${numerator} ÷ ${total.toLocaleString('zh-CN')} × 100%`));
       assert(html.includes(`${numerator} ÷ ${denominator} × 100%`));
       assert(html.includes(share)); assert(html.includes(percent));
       assert(html.includes(`data-metric="${metric}"`));
@@ -37,3 +41,4 @@ test('node summary distinguishes sample coverage from publication proportion and
     await server.close();
   }
 });
+import {decodeExplorer} from '../src/report/explorerCodec.js';

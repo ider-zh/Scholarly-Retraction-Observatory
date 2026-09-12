@@ -1,4 +1,6 @@
 import {validateExplorer} from './explorerSchema.js';
+import {decodeExplorer} from './explorerCodec.js';
+import {validateCountryExplorer} from './country.js';
 
 export const SECTIONS = ['overview', 'time', 'fields', 'reasons', 'geography', 'entities', 'publishing', 'citations', 'quality'];
 export const SNAPSHOT_PATHS = ['data/snapshot/manifest.json', ...SECTIONS.map(section => `data/snapshot/${section}.json`)];
@@ -18,6 +20,10 @@ export function validateManifest(manifest) {
     requireValue(typeof manifest[key] === 'string' && manifest[key].length > 0, `Missing provenance: ${key}`);
   }
   requireValue(manifest.metric_observation_cutoff <= manifest.oa_snapshot_date, 'Cohort cutoff exceeds OA snapshot');
+  if (manifest.role_policy_version === BROAD_WORK_POLICY) {
+    requireValue(JSON.stringify(manifest.work_type_scope) === '["all"]', 'Broad Work type scope missing');
+    requireValue(['parent_scan_config_sha256', 'derivation_sha256', 'work_policy_sha256'].every(key => /^[a-f0-9]{64}$/.test(manifest.work_policy_provenance?.[key])), 'Broad Work derivation provenance missing');
+  }
   requireValue(manifest.source_acceptance_policy !== 'retrospective-v1' || manifest.transfer_provenance_status === 'missing', 'Retrospective provenance must remain visible');
   requireValue(manifest.quality_gates && Object.values(manifest.quality_gates).every(value => value === true), 'Failed publication gate');
   requireValue(Array.isArray(manifest.files) && manifest.files.length === SECTIONS.length, 'Incomplete snapshot section list');
@@ -32,6 +38,7 @@ export function validateManifest(manifest) {
 }
 export function decodeChartRows(chart) {
   if (chart.row_columns === undefined && chart.row_values === undefined) return chart;
+  if (chart.row_values?.encoding !== undefined) chart = {...chart, row_values: decodeExplorer(chart.row_values)};
   requireValue(chart.rows === undefined && Array.isArray(chart.row_columns) && Array.isArray(chart.row_values), 'Ambiguous aggregate row encoding');
   const columns = chart.row_columns;
   requireValue(columns.length > 0 && columns.every(column => typeof column === 'string' && !forbidden.has(column) && !['__proto__', 'constructor', 'prototype'].includes(column)) && new Set(columns).size === columns.length, 'Invalid aggregate columns');
@@ -47,8 +54,11 @@ export function validateChunk(chunk, manifest, section) {
   requireValue(chunk?.schema_version === 3 && chunk.release_id === manifest.release_id && chunk.section === section, 'Mixed or invalid snapshot release');
   requireValue(Array.isArray(chunk.charts), 'Missing chart collection');
   chunk = {...chunk, charts: chunk.charts.map(decodeChartRows)};
+  if (chunk.discipline_explorer !== undefined) chunk.discipline_explorer = decodeExplorer(chunk.discipline_explorer);
   if (section === 'fields' && manifest.capabilities?.discipline_explorer) validateExplorer(chunk.discipline_explorer, manifest);
   else requireValue(chunk.discipline_explorer === undefined, 'Undeclared discipline explorer');
+  if (section === 'geography' && manifest.capabilities?.country_explorer) validateCountryExplorer(chunk.country_explorer, manifest);
+  else requireValue(chunk.country_explorer === undefined, 'Undeclared country explorer');
   const seen = new Set();
   for (const chart of chunk.charts) {
     const key = `${chart.chart_id}/${chart.slice_id}`;
@@ -58,9 +68,19 @@ export function validateChunk(chunk, manifest, section) {
     requireValue(typeof chart.population_key === 'string' && typeof chart.metric_id === 'string', 'Missing chart semantics');
     requireValue(chart.scope?.corpus && chart.scope?.attribution && Array.isArray(chart.scope.work_types), 'Missing scope');
     requireValue(chart.methods_version && chart.oa_snapshot_date === manifest.oa_snapshot_date && chart.rw_snapshot_date === manifest.rw_snapshot_date, 'Missing or inconsistent chart provenance');
+    if (manifest.role_policy_version === BROAD_WORK_POLICY && chart.population_key !== 'B') requireValue(chart.methods_version === BROAD_WORK_POLICY && chart.scope.work_policy === BROAD_WORK_POLICY, 'Mixed Work screening policy');
     requireValue(manifest.supported_slices.some(slice => slice.section === section && slice.chart_id === chart.chart_id && slice.slice_id === chart.slice_id && slice.status === chart.status), 'Undeclared chart slice');
     requireValue(Array.isArray(chart.rows) && Array.isArray(chart.insights) && Array.isArray(chart.limitations), 'Incomplete chart contract');
     requireValue(chart.status === 'ready' || (chart.rows.length === 0 && chart.insights.length === 0 && chart.unavailable_reason), 'Unavailable chart contains computed-looking data');
+    if (chart.chart_id === 'rw-author-names' && chart.status === 'ready') {
+      const coverage = chart.association_summary;
+      requireValue(chart.population_key === 'B' && chart.scope.corpus === 'rw' && chart.scope.attribution === 'distinct_original_per_raw_author_name', 'Invalid RW name scope');
+      requireValue(chart.rw_author_source_sha256 === manifest.rw_csv_sha256 && chart.metric_observation_cutoff === manifest.rw_snapshot_date, 'Mixed RW name provenance');
+      requireValue(coverage && ['known_works', 'unknown_works', 'partially_missing_works', 'distinct_name_strings', 'association_total'].every(key => Number.isSafeInteger(coverage[key]) && coverage[key] >= 0), 'Invalid RW name coverage');
+      requireValue(coverage.known_works + coverage.unknown_works === chart.quality.eligible_works && coverage.unknown_works === chart.quality.missing_works && coverage.partially_missing_works <= coverage.known_works, 'RW name coverage does not partition the cohort');
+      requireValue(chart.rows.length === Math.min(20, coverage.distinct_name_strings) && Array.isArray(coverage.excluded_placeholders), 'Invalid RW name Top N');
+      requireValue(chart.rows.every((row, index) => row.rank === index + 1 && Number.isSafeInteger(row.numerator) && row.numerator > 0 && row.numerator <= coverage.known_works && row.value === row.numerator && row.denominator === chart.quality.eligible_works && row.unit === 'works' && row.author_id === undefined && !coverage.excluded_placeholders.includes(row.id.toLowerCase()) && (!index || chart.rows[index - 1].numerator >= row.numerator)), 'Invalid RW name ranking');
+    }
     const rowIds = new Set();
     if (chart.chart_id === 'C3' && chart.post_retraction_citation_ratio) {
       const ratio = chart.post_retraction_citation_ratio;
@@ -98,3 +118,4 @@ export function validateChunk(chunk, manifest, section) {
   inspect(chunk);
   return chunk;
 }
+import {BROAD_WORK_POLICY} from './workPolicy.js';

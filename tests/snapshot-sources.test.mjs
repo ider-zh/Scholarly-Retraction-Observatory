@@ -8,7 +8,9 @@ import {decodeChartRows} from '../src/report/schema.js';
 const charts = readdirSync('public/data/snapshot').filter(name => name !== 'manifest.json').flatMap(name => JSON.parse(readFileSync(`public/data/snapshot/${name}`)).charts.map(decodeChartRows));
 
 test('all published analyses have explicit source scopes; multiple sources never imply union', () => {
-  assert.equal(charts.length, 109);
+  const manifest = JSON.parse(readFileSync('public/data/snapshot/manifest.json'));
+  assert.equal(charts.length, manifest.supported_slices.length);
+  assert(charts.length >= 110);
   assert(charts.every(chart => sourceProfile(chart).key !== 'unclassified'));
   assert.equal(filterCharts(charts, ['rw', 'oa']).length, charts.length);
   assert.equal(filterCharts(charts, []).length, 0);

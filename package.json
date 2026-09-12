@@ -1,7 +1,7 @@
 {
   "name": "scholarly-retraction-observatory", "version": "2.0.0", "private": true, "type": "module",
-  "scripts": {"dev": "vite --host 0.0.0.0", "build": "vite build && node scripts/check-public-data.mjs", "preview": "vite preview", "check:data": "node scripts/check-public-data.mjs", "test": "python -m unittest discover -s tests"},
-  "dependencies": {"react": "^19.1.0", "react-dom": "^19.1.0", "recharts": "^3.0.0", "lucide-react": "^0.468.0"},
-  "devDependencies": {"vite": "^8.0.0", "@vitejs/plugin-react": "^6.0.0"},
+  "scripts": {"dev": "vite --host 0.0.0.0", "build:presentation": "node scripts/build-presentation.mjs", "build": "npm run build:presentation && vite build && node scripts/check-public-data.mjs", "preview": "vite preview", "check:data": "node scripts/check-public-data.mjs", "test": "python -m unittest discover -s tests"},
+  "dependencies": {"react": "^19.1.0", "react-dom": "^19.1.0", "recharts": "^3.0.0", "lucide-react": "^0.468.0", "@noble/hashes": "2.4.0", "rc-slider": "11.1.9", "fflate": "0.8.3"},
+  "devDependencies": {"vite": "^8.0.0", "@vitejs/plugin-react": "^6.0.0", "d3-geo": "3.1.1"},
   "engines": {"node": ">=22.12.0"}
 }

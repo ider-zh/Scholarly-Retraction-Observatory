@@ -23,6 +23,21 @@ remain in force. `strict-v1` remains available for future documented transfers.
 
 Companion: [Website Report Design](WEBSITE_REPORT_DESIGN.md). Existing production methodology: [RESEARCH.md](RESEARCH.md).
 
+Candidate-scope amendment (2026-09-12, explicitly approved by the project owner):
+`original-first-independent-notices-v2` supersedes the article-only and automatic
+title/type/conflict exclusions below for runs declaring this policy. Retain core
+Works of all types under the same valid-date boundary. Exclude a notice only when
+its RW identifier relationship points to a different comparable original DOI/PMID
+and the Work does not itself match original identifiers. Preserve uncertainty;
+retained Works are candidates, not independently confirmed original papers.
+Recompute publication denominators and every dependent analysis under the same
+policy; do not divide broad numerators by legacy article-only denominators.
+Explicit article/review comparison slices remain narrower and labeled. Identifier
+ambiguity and contradictory DOI/PMID matches remain unresolved, not arbitrarily
+selected. Source snapshots and historical runs remain unchanged. See
+[policy review and validation](BROAD_WORK_POLICY_REVIEW.md) for provenance,
+recomputed totals, reassessed examples and acceptance evidence.
+
 ## 1. Scope and review decisions
 
 Preserve the current RW-only report. The existing limited OpenAlex DOI lookup is a debugging/enrichment subset, not a representative analytical sample. The snapshot phase is a separate, versioned report; it must not silently replace the current population, taxonomy, or observations.

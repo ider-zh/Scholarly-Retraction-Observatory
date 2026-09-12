@@ -12,11 +12,13 @@ import duckdb
 import pyarrow as pa
 
 from .validate_snapshot import atomic_json, digest, now
+from .work_policy import is_broad
 
 
 def run(release_dir, workers=6, threads=8, memory_limit='32GB'):
     release_dir = Path(release_dir)
     provenance = json.loads((release_dir / 'provenance.json').read_text())
+    broad = is_broad(provenance)
     validation_path = Path(provenance['validation_report'])
     validation = json.loads(validation_path.read_text())
     root = Path(validation['snapshot_dir'])
@@ -77,10 +79,10 @@ def run(release_dir, workers=6, threads=8, memory_limit='32GB'):
                      WHEN source_work.authors_count < len(source_work.authorships) THEN 'count_conflict'
                      ELSE 'no_detected_truncation_not_proven_complete' END AS authorship_audit
             FROM source_work LEFT JOIN roles USING(id) LEFT JOIN matched USING(id)
-            WHERE source_work.is_xpac IS FALSE AND source_work.type IN ('article','review')
+            WHERE source_work.is_xpac IS FALSE AND ({'TRUE' if broad else 'FALSE'} OR source_work.type IN ('article','review'))
                 AND source_work.publication_year BETWEEN 1 AND {int(cutoff[:4])}
                 AND (source_work.publication_date IS NULL OR source_work.publication_date <= DATE '{cutoff}')
-                AND coalesce(roles.document_role, CASE WHEN regexp_matches(coalesce(source_work.title,''),
+                AND coalesce(roles.document_role, CASE WHEN {'TRUE' if broad else 'FALSE'} THEN 'unresolved' WHEN regexp_matches(coalesce(source_work.title,''),
                     '(?i)^\\s*(retraction\\b|retracted\\b|withdrawal notice\\b|correction\\b|erratum\\b|corrigendum\\b|expression of concern\\b)')
                     THEN 'suspected_notice' ELSE 'unresolved' END) IN ('original_supported','unresolved')''')
         queries = []

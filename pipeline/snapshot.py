@@ -20,6 +20,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from .build import date, doi, parts
+from .country_grouping import country_code
 from .validate_snapshot import atomic_json, digest, now
 
 
@@ -128,7 +129,7 @@ def country_sets(work):
         identifier = (authorship.get('author') or {}).get('id')
         if identifier and re.fullmatch(r'https://openalex.org/A[1-9][0-9]*', identifier) and not identifier.endswith('/A9999999999'):
             author_ids.add(identifier)
-        countries = {value for value in authorship.get('countries') or [] if re.fullmatch('[A-Z]{2}', value or '')}
+        countries = {country_code(value) for value in authorship.get('countries') or [] if re.fullmatch('[A-Z]{2}', value or '')}
         authorship_countries.update(countries)
         if not countries:
             missing_authorship_countries += 1
@@ -142,7 +143,7 @@ def country_sets(work):
             institution_ids[identifier] = label
             country = institution.get('country_code')
             if country and re.fullmatch('[A-Z]{2}', country):
-                institutions[country] = True
+                institutions[country_code(country)] = True
     author_count = work.get('authors_count')
     incomplete = missing_authorship_countries > 0 or (author_count is not None and author_count > len(authorships))
     modes = {}

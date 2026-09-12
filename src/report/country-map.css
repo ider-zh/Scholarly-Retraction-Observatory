@@ -1,0 +1,12 @@
+.snapshot-app .country-map svg {display:block;width:100%;height:auto;background:#fafcfc;margin:16px 0;}
+.snapshot-app .country-map svg > path {stroke:#fff;stroke-width:.65;vector-effect:non-scaling-stroke;}
+.snapshot-app .country-map svg > path[role="button"] {cursor:pointer;}
+.snapshot-app .country-map svg > path:is(:hover,[aria-pressed="true"]) {stroke:#172c29;stroke-width:1.8;}
+.snapshot-app .country-map svg > path:focus-visible {outline:none;stroke:#945e00;stroke-width:3;}
+.snapshot-app .country-map-legend {display:flex;flex-wrap:wrap;gap:8px 18px;font-size:12px;}
+.snapshot-app .country-map-legend span {display:flex;align-items:center;gap:6px;}
+.snapshot-app .country-map-legend i {display:inline-block;width:18px;height:14px;border:1px solid #8b9996;}
+.snapshot-app .country-map-small {background:repeating-linear-gradient(45deg,#f1eee6 0 3px,#9a927d 3px 4px);}
+.snapshot-app .country-map-detail {padding:12px 0;min-height:48px;font-variant-numeric:tabular-nums;}
+.snapshot-app .country-view-choice {display:flex;gap:8px;margin:16px 0;}
+.snapshot-app .country-view-choice button[aria-pressed="true"] {background:#176b73;color:white;}

@@ -42,7 +42,7 @@ def dictionaries(validation_path):
     return result['sources'], result['publishers']
 
 
-def build_charts(validation_path, works, a1, cd, by_work, dimensions, oa_date, rw_date, chart, count_row):
+def build_charts(validation_path, works, a1, cd, by_work, dimensions, oa_date, rw_date, chart, count_row, broad=False):
     sources, publishers = dictionaries(validation_path)
     if not sources or not publishers:
         return [], False
@@ -74,7 +74,7 @@ def build_charts(validation_path, works, a1, cd, by_work, dimensions, oa_date, r
                 missing=counts[None], limitations=limitations))
         denominators = Counter()
         for dimension, source_id, kind, year, total, weight in dimensions:
-            if dimension == 'journal' and kind == 'article' and year >= 2000 and mapping.get(source_id):
+            if dimension == 'journal' and (broad or kind == 'article') and year >= 2000 and mapping.get(source_id):
                 denominators[mapping[source_id]] += total
         selected_counts = Counter(member(identifier) for identifier in a1 if works[identifier]['publication_year'] >= 2000)
         selected = sorted((key for key in selected_counts if key), key=lambda key: (-selected_counts[key], key))[:20]

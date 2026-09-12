@@ -6,6 +6,10 @@ React + Vite + Recharts 构建的撤稿统计研究网站。**前端只发布预
 
 ## 架构
 
+网站首页提供三个独立入口：**Report v1**（`#/report-v1`，原版 RW 报告）、**Report v2**（`#/snapshot/overview?sources=rw%2Coa`，快照联合阅读）和 **HTML-PPT (v2)**（`presentation-v2/index.html`，15 页，含前置 3 页研究综述）。展示名称 v1/v2 不改变已有数据 schema 的版本号。
+
+演示稿使用项目内 `html-ppt` skill 的 `academic-paper` 主题与模板，所有运行时和字体回退均为本地资源。方向键翻页、目录跳转、`F` 全屏、`S` 演讲者视图；图下可打开无障碍数据表并导出已发布聚合数据。`npm run build:presentation` 先校验源文件 SHA-256 / schema，再更新静态演示稿；`npm run build` 已包含该步骤。不读取原始论文库，不改写 `public/data/`。审查记录见 [HTML-PPT 与首页](docs/HTML_PPT_REVIEW.md)。
+
 ```text
 Python 离线处理（原始 CSV / OpenAlex 缓存，仅本地或 Actions）
   → 清洗、原论文去重、日期检查
@@ -59,6 +63,8 @@ node --test tests/snapshot-*.test.mjs
 ```
 
 普通前端构建仅使用仓库内已经生成的统计数据，不需要 Python、OpenAlex 密钥或重新下载数据。前端只对聚合后的时间序列进行展示筛选、后向三年均值和格式化，不进行论文级全库扫描。
+
+`npm run dev` 监听 `0.0.0.0`，同一局域网可使用终端显示的 Network 地址访问（默认端口 5173）。HTTPS/localhost 使用浏览器 Web Crypto 校验报告；局域网 HTTP 缺少该接口时，使用本地打包的 [`@noble/hashes`](https://github.com/paulmillr/noble-hashes) SHA-256 实现，仍严格检查文件大小和 manifest 中的摘要，不跳过校验。HTTP 仅用于可信局域网开发，不能保证传输或 manifest 的真实性；公开部署仍应使用 HTTPS。
 
 ## Cloudflare Pages
 

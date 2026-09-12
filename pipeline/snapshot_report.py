@@ -15,6 +15,8 @@ import pyarrow.compute as pc
 import pyarrow.parquet as pq
 
 from .snapshot import METHODS, ROLE_POLICY, cohort_rate, country_sets, quantile, select_match
+from .work_policy import is_broad, type_selected, METHOD as BROAD_METHOD
+from .country_grouping import VERSION as COUNTRY_GROUPING, METHOD as COUNTRY_METHOD
 from .validate_snapshot import atomic_bytes, atomic_json, digest, now
 from .citation_analysis import build_charts as citation_charts
 from .reason_families import build_charts as reason_family_charts, VERSION as REASON_VERSION
@@ -25,6 +27,7 @@ from .concept_analysis import build_charts as concept_charts
 from .taxonomy_analysis import build_explorer, REFERENCE as TAXONOMY_REFERENCE
 from .aggregate_codec import pack_chart
 from .report_language import readable, format_value, TYPE_NAMES
+from .author_names import build_chart as author_name_chart
 
 
 SECTIONS = ('overview', 'time', 'fields', 'reasons', 'geography', 'entities', 'publishing', 'citations', 'quality')
@@ -32,7 +35,7 @@ ELIGIBLE_ROLES = {'original_supported', 'unresolved'}
 LIMITATIONS = {
     'source': 'OpenAlex 的撤稿标记源自 RW；这是覆盖核对与元数据补充，不是独立验证。',
     'role': 'A1 是角色筛选后的发表候选，未独立确认为原论文；标题疑似通知的纳入/排除敏感性另列。',
-    'country': '国家表示论文署名关联地点，不是国籍或责任；已知国家分数计数可能高估部分缺失论文的已知成员。',
+    'country': '国家表示论文署名关联地点，不是国籍或责任；已知国家分数计数可能高估部分缺失论文的已知成员。' + COUNTRY_METHOD,
     'event': '当前 RW 文件记录的首次有效撤稿日期不等于完整历史事件日志；较晚补录与选择性匹配会影响构成。',
     'rate': '这是截至快照的已观测发表队列比例；近期队列观察时间较短，不能据此判断风险下降。',
     'reason': '同篇论文的 Retraction 记录原因取并集，可有多个标签；并非每个原因在首次撤稿日已知，也不都代表已证实不端。',
@@ -173,11 +176,15 @@ def chart(chart_id, population, metric, rows, title, question, *, scope=None, mi
     return result
 
 
-def build(release_dir):
+def build(release_dir, output_dir=None, rw_csv=None):
     release_dir = Path(release_dir)
+    report_dir = Path(output_dir) if output_dir else release_dir / 'report'
+    artifact_dir = report_dir.parent if output_dir else release_dir
     report_source_hash = digest(Path(__file__).read_bytes())
     scan = json.loads((release_dir / 'scan-complete.json').read_text())
     provenance = json.loads((release_dir / 'provenance.json').read_text())
+    broad = is_broad(provenance)
+    analysis_types = ['all'] if broad else ['article']
     if scan['config_sha256'] != provenance['config_sha256']:
         raise ValueError('Scan/provenance version mismatch')
     validation_path = Path(provenance['validation_report'])
@@ -187,9 +194,12 @@ def build(release_dir):
     if len(shards) != scan['files'] or any(not (shard / 'complete.json').exists() for shard in shards):
         raise ValueError('Incomplete scan; cannot build report')
     oa_date, rw_date = validation['oa_snapshot_date'], provenance['rw']['rw_snapshot_date']
-    dimension_version = json.loads((release_dir / 'dimensions-complete.json').read_text())['code_sha256'] if (release_dir / 'dimensions-complete.json').exists() else None
+    dimension_marker = json.loads((release_dir / 'dimensions-complete.json').read_text()) if (release_dir / 'dimensions-complete.json').exists() else None
+    if dimension_marker and dimension_marker.get('country_grouping_version') != COUNTRY_GROUPING:
+        raise ValueError('Country grouping changed; rerun snapshot_dimensions before building the report')
+    dimension_version = dimension_marker['code_sha256'] if dimension_marker else None
     extension_hashes = {name: digest(Path(__file__).with_name(name + '.py').read_bytes())
-                        for name in ('citation_analysis', 'reason_families', 'publisher_analysis', 'supplement_analysis', 'extended_descriptive', 'concept_analysis', 'report_language', 'taxonomy_analysis', 'aggregate_codec')}
+                        for name in ('citation_analysis', 'reason_families', 'publisher_analysis', 'supplement_analysis', 'extended_descriptive', 'concept_analysis', 'report_language', 'taxonomy_analysis', 'aggregate_codec', 'country_analysis', 'author_names', 'country_grouping', 'work_policy')}
     citation_marker = json.loads((release_dir / 'citations-complete.json').read_text()) if (release_dir / 'citations-complete.json').exists() else None
     supplement_marker = json.loads((release_dir / 'supplement-complete.json').read_text()) if (release_dir / 'supplement-complete.json').exists() else None
     concept_marker = json.loads((release_dir / 'concepts-complete.json').read_text()) if (release_dir / 'concepts-complete.json').exists() else None
@@ -197,6 +207,7 @@ def build(release_dir):
     taxonomy_reference_hash = digest(TAXONOMY_REFERENCE.read_bytes())
     burst_policy_hash = digest((Path(__file__).resolve().parents[1] / 'data/reference/snapshot-burst-policy-v1.json').read_bytes())
     report_config_hash = digest(json.dumps({'scan_config_sha256': provenance['config_sha256'],
+        'rw_author_source_sha256': provenance['rw']['rw_csv_sha256'] if rw_csv else None,
         'report_source_sha256': report_source_hash, 'dimension_source_sha256': dimension_version,
         'extensions': extension_hashes, 'burst_policy': burst_policy_hash,
         'supplement': supplement_marker['config_sha256'] if supplement_marker else None,
@@ -217,7 +228,7 @@ def build(release_dir):
                 by_doi[identity['doi']].add(identifier)
             if identity['pmid']:
                 by_pmid[identity['pmid']].add(identifier)
-            if (identity['is_xpac'] is False and identity['type'] == 'article'
+            if (identity['is_xpac'] is False and type_selected(identity['type'], broad)
                     and identity['document_role'] in ELIGIBLE_ROLES
                     and identity['publication_year'] is not None
                     and 1 <= identity['publication_year'] <= int(oa_date[:4])
@@ -266,7 +277,7 @@ def build(release_dir):
         else:
             state = match['match_outcome']
         reconciliation[state] += 1
-    atomic_json(release_dir / 'rw_oa_match.json', matches)
+    atomic_json(artifact_dir / 'rw_oa_match.json', matches)
     with duckdb.connect(config={'memory_limit': '32GB', 'threads': 16}) as connection:
         connection.read_parquet([str(shard / 'cohorts.parquet') for shard in shards]).create_view('cohorts')
         cohort_rows = connection.execute('''SELECT is_xpac, type, publication_year, document_role,
@@ -281,7 +292,7 @@ def build(release_dir):
         flag_counts[(corpus, flag)] += count
         if flag is True:
             role_counts[(corpus, role)] += count
-        if xpac is False and kind in {'article', 'review'} and valid_date:
+        if xpac is False and (broad or kind in {'article', 'review'}) and valid_date:
             if role in ELIGIBLE_ROLES:
                 denominators[(kind, year)] += count
                 if flag is True:
@@ -310,24 +321,24 @@ def build(release_dir):
         if field_totals != denominators:
             raise ValueError('Dimension D differs from the original publication-cohort D')
 
-    def eligible(work, kind='article'):
-        return (work['is_xpac'] is False and work['type'] == kind and work['document_role'] in ELIGIBLE_ROLES
+    def eligible(work, kind=None):
+        return (work['is_xpac'] is False and (type_selected(work['type'], broad) if kind is None or kind == 'all' else work['type'] == kind) and work['document_role'] in ELIGIBLE_ROLES
                 and work['publication_year'] is not None and 1 <= work['publication_year'] <= int(oa_date[:4])
                 and (work['publication_date'] is None or str(work['publication_date']) <= oa_date))
 
     a0 = {identifier for identifier, work in works.items() if work['is_xpac'] is False and work['is_retracted'] is True}
     a1 = {identifier for identifier in a0 if eligible(works[identifier])}
-    if len(a1) != sum(count for (kind, year), count in flagged.items() if kind == 'article'):
+    if len(a1) != sum(count for (kind, year), count in flagged.items() if type_selected(kind, broad)):
         raise ValueError('A1 target extraction does not reconcile to full-scan counts')
     cd = {identifier for identifier in matched_by_cutoff if eligible(works[identifier])}
-    common_scope = {'corpus': 'core', 'work_types': ['article'], 'publication_year_range': None,
+    common_scope = {'corpus': 'core', 'work_types': analysis_types, 'publication_year_range': None,
                     'observation_cutoff': oa_date, 'attribution': 'unique_work', 'date_basis': 'oa_publication_year'}
     chapters = {section: [] for section in SECTIONS}
     card_rows = [count_row('A0', '主体库中带撤稿标记的记录', len(a0), unit='records'),
                  count_row('A1', '筛选后纳入分析的撤稿标记论文', len(a1)),
                  count_row('B', 'Retraction Watch 记录的撤稿原论文', len(papers)),
                  count_row('C', '与 OpenAlex 成功匹配的不同记录', len(matched_ids), unit='records'),
-                 count_row('D', '用作比较基数的同口径发表论文', sum(value for (kind, year), value in denominators.items() if kind == 'article'))]
+                 count_row('D', '用作比较基数的同口径发表论文', sum(value for (kind, year), value in denominators.items() if type_selected(kind, broad)))]
     chapters['overview'].append(chart('population-accounting', 'mixed_diagnostic', 'work_count', card_rows,
         '研究覆盖了哪些记录？', '标记记录、RW 原论文和匹配作品各有多少？',
         scope={'corpus': 'mixed_see_cell_labels', 'work_types': ['mixed'], 'attribution': 'separate_population_counts'},
@@ -347,7 +358,7 @@ def build(release_dir):
     exclusions = Counter()
     for identifier in a0:
         work = works[identifier]
-        if work['type'] != 'article':
+        if not type_selected(work['type'], broad):
             exclusions['excluded_work_type'] += 1
         elif work['document_role'] not in ELIGIBLE_ROLES:
             exclusions['excluded_' + work['document_role']] += 1
@@ -442,20 +453,25 @@ def build(release_dir):
     chapters['time'].append(chart('T4', 'B', 'lag_ecdf_pct', ecdf, '已撤稿样本的时滞 ECDF',
         '有效日期样本中，有多少在某个年限内被撤稿？', missing=len(papers) - len(lags), denominator=len(lags),
         limitations=['只描述已记录撤稿样本，不是全部论文的生存或风险曲线；来源的原始日期精度无法完全恢复。'], extras={'quantiles': quantiles}))
-    for kind in ('article', 'review'):
+    for kind in (('all', 'article', 'review') if broad else ('article', 'review')):
         cd_counts = Counter(works[identifier]['publication_year'] for identifier in matched_by_cutoff if eligible(works[identifier], kind))
+        cohort_bases, cohort_flags = Counter(), Counter()
+        for (work_type, year), count in denominators.items():
+            if kind == 'all' or work_type == kind:
+                cohort_bases[year] += count
+                cohort_flags[year] += flagged[(work_type, year)]
         for population in ('A1_over_D', 'C_D_over_D'):
             rows = []
-            for (work_type, year), denominator in sorted(denominators.items()):
-                if work_type != kind or year < 2000:
+            for year, denominator in sorted(cohort_bases.items()):
+                if year < 2000:
                     continue
-                numerator = flagged[(kind, year)] if population == 'A1_over_D' else cd_counts[year]
+                numerator = cohort_flags[year] if population == 'A1_over_D' else cd_counts[year]
                 if numerator > denominator:
                     raise ValueError('Cohort numerator exceeds denominator')
                 rows.append(dict(count_row(year, str(year), numerator, denominator), **cohort_rate(numerator, denominator),
                                  unit='per_10k', year=year, partial=year == int(oa_date[:4]),
-                                 suspected_notice_denominator=suspected_denominators[(kind, year)],
-                                 suspected_notice_numerator=suspected_flagged[(kind, year)] if population == 'A1_over_D' else 0))
+                                 **({} if broad else {'suspected_notice_denominator': suspected_denominators[(kind, year)],
+                                    'suspected_notice_numerator': suspected_flagged[(kind, year)] if population == 'A1_over_D' else 0})))
             chapters['time'].append(chart('T3', population,
                 'oa_flagged_cohort_per_10k' if population == 'A1_over_D' else 'rw_recorded_cohort_per_10k', rows,
                 ('OA 标记' if population == 'A1_over_D' else 'RW 记录') + f' · {kind} 发表队列每万篇比例',
@@ -464,6 +480,7 @@ def build(release_dir):
                 denominator=sum(row['denominator'] for row in rows), limitations=[LIMITATIONS['rate'], LIMITATIONS['role'],
                 '疑似通知敏感性：纳入时同时加入每行的 suspected_notice_numerator 与 suspected_notice_denominator；默认二者均排除。RW 原标识支持的匹配已有角色证据。']))
 
+    chapters['entities'].append(author_name_chart(papers, rw_csv, provenance['rw']['rw_csv_sha256'], rw_date, chart, count_row))
     for population, identifiers in [('A1', a1), ('C', {identifier for identifier in matched_ids if eligible(works[identifier])})]:
         population_scope = dict(common_scope, slice_id=population + '-core-article',
                                 observation_cutoff=rw_date if population == 'C' else oa_date)
@@ -697,10 +714,10 @@ def build(release_dir):
         dimension_denominators = Counter()
         dimension_known_works = Counter()
         for dimension, identifier, kind, year, count, weight in dimension_rows:
-            if identifier is not None and kind == 'article' and year >= 2000:
+            if identifier is not None and type_selected(kind, broad) and year >= 2000:
                 dimension_denominators[(dimension, identifier)] += count
                 dimension_known_works[dimension] += weight
-        scope_denominator = sum(count for (kind, year), count in denominators.items() if kind == 'article' and year >= 2000)
+        scope_denominator = sum(count for (kind, year), count in denominators.items() if type_selected(kind, broad) and year >= 2000)
         field_labels = {work['topic']['field']['id']: work['topic']['field'].get('display_name') or work['topic']['field']['id']
                         for work in works.values() if (work['topic'].get('field') or {}).get('id')}
         journal_labels = {work['source']['id']: work['source'].get('display_name') or work['source']['id']
@@ -748,7 +765,7 @@ def build(release_dir):
                     denominator=sum(row['denominator'] for row in rows) if dimension == 'journal' else scope_denominator,
                     missing=0 if dimension == 'journal' else scope_denominator - round(dimension_known_works[dimension]),
                     limitations=[LIMITATIONS['rate'], '所有单元使用 core article、2000 年起的发表队列；未做学科/时代调整，不解释为固有风险。',
-                                 '固定期刊集由 A1 关联数前 20 个 journal 来源选定；不是全体期刊比例排名。' if dimension == 'journal' else '国家全计数分母可重叠；选择国家不重新分配权重。' if dimension == 'institution_country' else '未分类作品不进入已知 Field 单元。']))
+                                 '固定期刊集由 A1 关联数前 20 个 journal 来源选定；不是全体期刊比例排名。' if dimension == 'journal' else '国家全计数分母可重叠；选择国家不重新分配权重。' + COUNTRY_METHOD if dimension == 'institution_country' else '未分类作品不进入已知 Field 单元。']))
                 if dimension == 'field':
                     rankable = [row for row in rows if row['ranking_eligible']]
                     count_rank = {row['id']: index for index, row in enumerate(sorted(rankable, key=lambda row: (-row['numerator'], row['id'])), 1)}
@@ -759,7 +776,7 @@ def build(release_dir):
                         limitations=[LIMITATIONS['rate'], '仅 n≥20 且 N≥1,000 的完整学科集合；数值并列时按稳定 ID 排序，不表示统计上存在差异。']))
     chapters['reasons'] = reason_family_charts(papers, by_work, works, rw_date, chart, count_row) + chapters['reasons']
     publisher_results, publisher_ready = publisher_charts(validation_path, works, a1, cd, by_work,
-        dimension_rows, oa_date, rw_date, chart, count_row)
+        dimension_rows, oa_date, rw_date, chart, count_row, broad=broad)
     chapters['publishing'].extend(publisher_results)
     incoming_results, incoming = citation_charts(release_dir, provenance, entries, works, chart, by_work)
     chapters['citations'].extend(incoming_results)
@@ -782,6 +799,17 @@ def build(release_dir):
         for chart_id, title, reason in specifications:
             chapters[section].append(chart(chart_id, 'unavailable', 'not_computed', [], title, title,
                                             status='not_computed', unavailable_reason=reason))
+    from .country_analysis import build_explorer as build_country_explorer
+    country_explorer = build_country_explorer(dimension_rows, works, a1, cd, oa_date, rw_date, broad=broad)
+    if country_explorer:
+        for item in chapters['geography']:
+            if item['chart_id'] == 'G1' and item['metric_id'].endswith('_cohort_per_10k'):
+                population = 'A1' if item['population_key'] == 'A1_over_D' else 'C_D'
+                nodes = {node['id']: node for node in country_explorer['nodes']}
+                for row in item['rows']:
+                    node = nodes[row['id']]
+                    if (row['numerator'], row['denominator']) != (node['counts'][population][0], node['denominator'][0]):
+                        raise ValueError('Country yearly totals do not reproduce published country cohort scope')
     manifest = {
         'schema_version': 3, 'release_id': release_id, 'status': 'ready', 'delivery_phase': 'S3_incoming_citations' if incoming else 'S2_joined_cohort_report',
         'oa_snapshot_date': oa_date, 'oa_source_prefix': validation['source_prefix'], 'oa_manifest_sha256': validation['manifest_sha256'],
@@ -795,8 +823,10 @@ def build(release_dir):
         'supplement_scan': {key: supplement[key] for key in ('config_sha256', 'code_sha256', 'targets_sha256', 'files')} if supplement else None,
         'concept_scan': {key: concepts[key] for key in ('config_sha256', 'code_sha256', 'files')} if concepts else None,
         'incoming_citation_scan': {key: incoming[key] for key in ('config_sha256', 'code_sha256', 'targets_sha256', 'files', 'targets', 'edges', 'citing_corpus')} if incoming else None,
-        'schema_adapter_version': validation['schema_adapter_version'], 'role_policy_version': ROLE_POLICY,
+        'schema_adapter_version': validation['schema_adapter_version'], 'role_policy_version': provenance['config']['role_policy'],
+        'work_type_scope': analysis_types,
         'reason_mapping_version': REASON_VERSION, 'country_attribution_mode': 'institution_country',
+        'country_grouping_version': COUNTRY_GROUPING,
         'corpus': 'core', 'metric_observation_cutoff': oa_date, 'generated_at': now(),
         'source_acceptance_policy': validation['source_acceptance_policy'], 'transfer_provenance_status': validation['transfer_provenance']['status'],
         'capabilities': {'descriptive': True, 'publication_year_denominators': True, 'dimension_denominators': bool(dimension_rows),
@@ -814,10 +844,15 @@ def build(release_dir):
         'limitations': [LIMITATIONS['source'], LIMITATIONS['role'], LIMITATIONS['rate'],
                        '项目负责人接受回溯验证；下载前 manifest 与传输时间日志缺失，不声称完成历史传输原子性证明。'],
     }
-    report_dir = release_dir / 'report'
+    manifest['capabilities']['country_explorer'] = bool(country_explorer)
+    if broad:
+        manifest['limitations'] = [BROAD_METHOD if text == LIMITATIONS['role'] else text for text in manifest['limitations']]
+        manifest['work_policy_provenance'] = {key: provenance['config'][key] for key in ('parent_scan_config_sha256', 'derivation_sha256', 'work_policy_sha256')}
+    if country_explorer:
+        manifest['quality_gates']['country_yearly_reproduces_cohort_totals'] = True
     if incoming:
         manifest['quality_gates'].update(incoming_edge_partition=True, calendar_followup=True)
-        atomic_json(release_dir / 'citation-summary.json', incoming['summary'])
+        atomic_json(artifact_dir / 'citation-summary.json', incoming['summary'])
     if supplement:
         manifest['quality_gates']['supplement_reproduces_D_A1'] = True
     for filename, captured in [('citations-complete.json', citation_marker), ('supplement-complete.json', supplement_marker), ('concepts-complete.json', concept_marker), ('taxonomy-complete.json', taxonomy_marker)]:
@@ -833,6 +868,41 @@ def build(release_dir):
         raise ValueError('Report extension changed during generation')
     for section, charts in chapters.items():
         for item in charts:
+            if broad and item['population_key'] != 'B':
+                item['methods_version'] = provenance['config']['role_policy']
+                item['scope']['work_policy'] = provenance['config']['role_policy']
+                if item['scope'].get('work_types') == ['article'] and not (item['chart_id'] == 'T3' and item['slice_id'].endswith('-article')):
+                    item['scope']['work_types'] = ['all']
+                item['limitations'] = [BROAD_METHOD if text == LIMITATIONS['role'] or '疑似通知敏感性' in text else text.replace('core article', 'core 宽口径 Work').replace('相同 article', '相同宽口径 Work') for text in item['limitations']]
+                if item['chart_id'] == 'screening':
+                    item['title'] = '从撤稿标记到宽口径候选：哪些记录被保留？'
+                    item['question'] = '放宽类型与标题限制后，哪些记录仍应单独识别？'
+                    item['limitations'] = [BROAD_METHOD, '仅排除证据明确的独立通知及不符合截止日期的记录；保留记录仍可能存在身份不确定性。']
+                    item['policy_audit'] = {
+                        'legacy_retained': sum(work['type'] == 'article' and work.get('legacy_document_role') in ELIGIBLE_ROLES and eligible(work) for identifier, work in works.items() if identifier in a0),
+                        'broad_retained': len(a1),
+                        'retained_uncertain': sum(bool(works[identifier].get('screening_uncertain')) for identifier in a1)}
+                    item['insights'][0]['text'] = f'主体库 {len(a0):,} 条撤稿标记记录中，宽口径保留 {len(a1):,} 条候选；标题、类型及身份冲突不单独构成排除依据。'
+                if item['chart_id'] == 'population-accounting':
+                    item['insights'][0]['text'] = f'OA 主体库有 {len(a0):,} 条撤稿标记 Work，宽口径保留 {len(a1):,} 条候选。RW 原论文为 {len(papers):,} 篇；两库重叠，不可相加。'
+                if item['chart_id'] == 'work-types':
+                    item['limitations'] = [BROAD_METHOD, 'article、review、retraction 是来源类型标签；不凭类型单独确定原文或通知身份。journal 是发表来源类型。']
+                if item['chart_id'] == 'Q3':
+                    item['limitations'] = [BROAD_METHOD, '依次识别有独立原文关联的通知，再检查日期；分组互斥，类型和标题不单独排除。']
+                if item['chart_id'] in ('screening', 'Q3'):
+                    for row in item['rows']:
+                        if row['id'] == 'retained_A1':
+                            row['label'] = '保留为宽口径文献候选'
+                        elif row['id'] == 'excluded_known_notice':
+                            row['label'] = '有独立原文关联的通知'
+                if item['chart_id'] == 'population-accounting':
+                    for row in item['rows']:
+                        if row['id'] == 'A1':
+                            row['label'] = '宽口径撤稿标记候选'
+                        elif row['id'] == 'D':
+                            row['label'] = '同口径全部发表文献'
+                for insight in item['insights']:
+                    insight['limitations'] = item['limitations']
             item.update(schema_version=3, release_id=release_id, oa_snapshot_date=oa_date,
                         rw_snapshot_date=rw_date, metric_observation_cutoff=item['scope'].get('observation_cutoff', rw_date if item['population_key'] == 'B' else oa_date))
             item['scope'].setdefault('corpus', 'rw' if item['population_key'] == 'B' else 'core')
@@ -842,9 +912,13 @@ def build(release_dir):
             for insight in item['insights']:
                 insight['release_id'] = release_id
             manifest['supported_slices'].append({'chart_id': item['chart_id'], 'slice_id': item['slice_id'], 'section': section, 'status': item['status']})
-        chunk = {'schema_version': 3, 'release_id': release_id, 'section': section, 'charts': [pack_chart(item) for item in charts]}
+        chunk = {'schema_version': 3, 'release_id': release_id, 'section': section, 'charts': [pack_chart(compact_numbers(item)) for item in charts]}
         if section == 'fields' and explorer:
-            chunk['discipline_explorer'] = dict(explorer, release_id=release_id)
+            from .aggregate_codec import pack_explorer
+            chunk['discipline_explorer'] = pack_explorer(dict(explorer, release_id=release_id))
+        if section == 'geography' and country_explorer:
+            chunk['country_explorer'] = dict(country_explorer, release_id=release_id,
+                dimension_source_sha256=dimension_version, scan_config_sha256=provenance['config_sha256'])
         if digest(TAXONOMY_REFERENCE.read_bytes()) != taxonomy_reference_hash:
             raise ValueError('Taxonomy reference changed during report generation')
         raw = json.dumps(compact_numbers(chunk), ensure_ascii=False, separators=(',', ':'), allow_nan=False).encode()
@@ -858,4 +932,7 @@ def build(release_dir):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('release_dir', type=Path)
-    build(parser.parse_args().release_dir)
+    parser.add_argument('--output-dir', type=Path)
+    parser.add_argument('--rw-csv', type=Path, help='Original RW CSV matching the scan provenance hash; enables raw-name ranking')
+    args = parser.parse_args()
+    build(args.release_dir, args.output_dir, args.rw_csv)

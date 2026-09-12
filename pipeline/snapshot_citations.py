@@ -13,12 +13,13 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from .validate_snapshot import atomic_json, digest, now
+from .work_policy import is_broad
 
 
 VERSION = 'incoming-edges-v1'
 
 
-def prepare_targets(release_dir, entries, cutoff):
+def prepare_targets(release_dir, entries, cutoff, broad=False):
     matches = json.loads((release_dir / 'rw_oa_match.json').read_text())
     papers = json.loads((release_dir / 'rw_original.json').read_text())
     linked = {}
@@ -30,7 +31,7 @@ def prepare_targets(release_dir, entries, cutoff):
     for entry in entries:
         shard = release_dir / 'shards' / digest(entry['key'].encode())
         for work in pq.ParquetFile(shard / 'identifiers.parquet').read().to_pylist():
-            if work['id'] not in linked or work['is_xpac'] is not False or work['type'] != 'article':
+            if work['id'] not in linked or work['is_xpac'] is not False or (not broad and work['type'] != 'article'):
                 continue
             if work['document_role'] not in {'original_supported', 'unresolved'}:
                 continue
@@ -77,7 +78,7 @@ def run(release_dir, workers=6, threads=8, memory_limit='32GB'):
     scan = json.loads((release_dir / 'scan-complete.json').read_text())
     if scan['files'] != len(entries) or scan['config_sha256'] != provenance['config_sha256']:
         raise ValueError('Incomplete canonical scan')
-    targets = prepare_targets(release_dir, entries, validation['oa_snapshot_date'])
+    targets = prepare_targets(release_dir, entries, validation['oa_snapshot_date'], is_broad(provenance))
     target_hash = digest(json.dumps(targets, sort_keys=True).encode())
     code_hash = digest(Path(__file__).read_bytes())
     config = {'version': VERSION, 'scan_config_sha256': provenance['config_sha256'],

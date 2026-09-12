@@ -8,6 +8,9 @@ const output = resolve(process.env.REPORT_QA_OUT || '/tmp/sro-overview-review/af
 const base = process.env.REPORT_QA_URL || 'http://127.0.0.1:4173/';
 const manifest = JSON.parse(await readFile('public/data/snapshot/manifest.json', 'utf8'));
 const overview = JSON.parse(await readFile('public/data/snapshot/overview.json', 'utf8'));
+const retainedRow = overview.charts.find(chart => chart.chart_id === 'screening').rows.find(row => row.id === 'retained_A1');
+const retainedCount = retainedRow.numerator.toLocaleString('zh-CN');
+const retainedPercent = retainedRow.value.toLocaleString('zh-CN', {maximumFractionDigits: manifest.work_type_scope?.includes('all') ? 3 : 2}) + '%';
 await mkdir(output, {recursive: true});
 const browser = await chromium.launch({executablePath: process.env.CHROMIUM_PATH || undefined, args: ['--no-sandbox']});
 const context = await browser.newContext({viewport: {width: 1440, height: 900}, reducedMotion: 'reduce'});
@@ -46,32 +49,32 @@ try {
     await check(name+' initial layout and accessibility', async () => {
       await page.setViewportSize({width, height}); await page.goto(route()); await ready();
       await capture(name); await audit(name);
-      assert.equal(await page.locator('.report-explorer').getAttribute('open'), null);
+      assert.equal(await page.locator('.report-explorer').evaluate(element => element.open), true);
       assert.equal(await page.locator('.report-overview').evaluate(element => getComputedStyle(element).backgroundColor), 'rgb(255, 254, 251)');
       assert.equal(await page.locator('.snapshot-pagination,.snapshot-analysis-index,.snapshot-controls').count(), 0);
-      assert.match(await page.locator('.report-finding-text').innerText(), /50,331.*43.94%/);
+      assert.match(await page.locator('.report-evidence > .report-finding, .report-evidence > .topic-analysis > .snapshot-caption, .report-evidence .report-finding-text').last().innerText(), new RegExp(retainedCount + '.*' + retainedPercent.replace('.', '\\.')));
       if (name === 'desktop') assert((await page.locator('.report-screening-plot').boundingBox()).y < height, 'chart begins below desktop fold');
-      if (name === 'mobile') {const finding = await page.locator('.report-finding-text').boundingBox(); assert(finding.y+finding.height < height, 'finding below mobile fold');}
+      if (name === 'mobile') {
+        const finding = await page.locator('.report-evidence > .report-finding, .report-evidence > .topic-analysis > .snapshot-caption, .report-evidence .report-finding-text').last().boundingBox();
+        const figure = await page.locator('.report-screening-plot').boundingBox();
+        assert(finding.y+finding.height < figure.y, 'finding must precede the plot');
+        assert.equal(await page.getByRole('button', {name: '报告目录', exact: true}).isVisible(), true);
+        assert.equal(await page.getByRole('navigation', {name: '快照报告章节'}).count(), 0);
+      }
     });
   }
   await page.setViewportSize({width: 1440, height: 900});
-  await check('source switches keep scope, narrative and figure synchronized', async () => {
-    await page.goto(route()); await ready();
-    await page.getByRole('button', {name: '更改数据集或分析 ↓'}).click();
-    await page.getByLabel('OpenAlex', {exact: true}).uncheck(); await ready(null);
+  await check('legacy source URLs keep scope, narrative and figure synchronized', async () => {
+    await page.goto(route('rw')); await ready(null);
     assert.equal(await page.locator('.report-evidence,.report-screening-plot').count(), 0);
     assert.match(await page.locator('.report-unavailable').innerText(), /尚未发布只使用 RW/);
-    await page.evaluate(() => scrollTo(0, 0)); await capture('rw'); await audit('rw');
-    await page.getByLabel('OpenAlex', {exact: true}).check(); await ready();
-    await page.getByLabel('Retraction Watch（RW）', {exact: true}).uncheck(); await ready();
-    await page.waitForFunction(() => location.hash.endsWith('sources=oa'));
+    await capture('rw'); await audit('rw');
+    await page.goto(route('oa')); await ready();
     assert.doesNotMatch(await page.locator('.report-scope-summary').innerText(), /RW 记录截至/);
-    assert.equal(await page.getByLabel('选择本章分析', {exact: true}).locator('option').count(), 2);
-    await page.evaluate(() => scrollTo(0, 0)); await capture('oa'); await audit('oa');
-    await page.getByLabel('Retraction Watch（RW）', {exact: true}).check(); await ready();
-    await page.waitForFunction(() => location.hash.endsWith('sources=rw%2Coa'));
+    await capture('oa'); await audit('oa');
+    await page.goto(route()); await ready();
     assert.match(await page.locator('.report-scope-summary').innerText(), /不是两库并集/);
-    assert.match(await page.locator('.report-finding .report-kicker').innerText(), /OpenAlex/);
+    assert.match(await page.locator('.report-evidence').innerText(), /OpenAlex/);
   });
   await check('representative figure values, hover, keyboard, table and precise CSV', async () => {
     await page.goto(route()); await ready();
@@ -83,13 +86,13 @@ try {
       assert(Math.abs(cssPercentage - row.value) < 0.0001, 'CSSOM rounding exceeds visual precision tolerance');
     }
     const retained = page.locator('[data-screening-row="retained_A1"]');
-    await retained.hover(); assert.match(await page.locator('.report-bar-detail').innerText(), /50,331.*114,538/);
+    await retained.hover(); assert.match(await page.locator('.report-bar-detail').innerText(), new RegExp(retainedCount + '.*' + retainedRow.denominator.toLocaleString('zh-CN')));
     await retained.focus(); await retained.press('Enter'); assert.match(await page.locator('.report-bar-detail').innerText(), /已锁定/);
     await retained.press('Escape'); assert.doesNotMatch(await page.locator('.report-bar-detail').innerText(), /已锁定/);
-    await retained.press('ArrowDown'); assert.equal(await page.locator('[data-screening-row="excluded_work_type"]').evaluate(element => element === document.activeElement), true);
+    await retained.press('ArrowDown'); assert.equal(await page.locator(`[data-screening-row="${manifest.work_type_scope?.includes('all') ? 'excluded_known_notice' : 'excluded_work_type'}"]`).evaluate(element => element === document.activeElement), true);
     await page.getByText('查看本图数据表与导出', {exact: true}).click();
     const csv = await exportCSV(page.getByRole('button', {name: '导出本切片聚合 CSV', exact: true}));
-    for (const expected of ['A0-screening', manifest.release_id, 'paper_coverage_pct', '114538', '43.942622', manifest.oa_snapshot_date, 'report-source-v1']) assert(csv.includes(expected), expected+' missing from CSV');
+    for (const expected of ['A0-screening', manifest.release_id, 'paper_coverage_pct', String(retainedRow.denominator), String(retainedRow.value), manifest.oa_snapshot_date, 'report-source-v1']) assert(csv.includes(expected), expected+' missing from CSV');
     assert.equal(await page.locator('.report-data-table tbody tr').count(), rows.length);
     await audit('figure with table open');
   });
@@ -100,27 +103,28 @@ try {
       assert.equal(await page.locator('.report-evidence').getAttribute('data-metric'), chart.metric_id);
     }
     await capture('deep-link');
-    assert.doesNotMatch(await page.locator('.report-finding-text').innerText(), /43.94%/);
+    assert.doesNotMatch(await page.locator('.report-evidence > .report-finding, .report-evidence > .topic-analysis > .snapshot-caption, .report-evidence .report-finding-text').last().innerText(), new RegExp(retainedPercent.replace('.', '\\.')));
     await page.reload(); await ready('work-types');
-    await page.getByRole('button', {name: '更改数据集或分析 ↓'}).click();
-    await page.getByLabel('选择本章分析', {exact: true}).selectOption('screening/A0-screening'); await ready();
-    assert.match(await page.locator('.report-finding-text').innerText(), /43.94%/);
+    await page.getByRole('button', {name: '查找数据专题 ↓'}).click();
+    await page.goto(route('rw,oa', 'screening/A0-screening')); await ready();
+    assert.match(await page.locator('.report-evidence > .report-finding, .report-evidence > .topic-analysis > .snapshot-caption, .report-evidence .report-finding-text').last().innerText(), new RegExp(retainedPercent.replace('.', '\\.')));
     await page.goBack(); await ready('work-types');
-    await page.getByText('查看完整聚合数据与计算方法', {exact: true}).click();
+    await page.getByText('查看完整聚合数据与导出', {exact: true}).click();
     const csv = await exportCSV(page.getByRole('button', {name: '导出本切片聚合 CSV', exact: true}));
     assert(csv.includes('A0-work-types') && csv.includes('88913') && !csv.includes('retained_A1'));
   });
   await check('copy success, route change and clipboard failure', async () => {
     await page.goto(route()); await ready();
-    await page.getByRole('button', {name: '更改数据集或分析 ↓'}).click();
+    await page.getByRole('button', {name: '查找数据专题 ↓'}).click();
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
-    await page.getByRole('button', {name: '复制当前分析链接', exact: true}).click();
+    await page.getByRole('button', {name: '复制当前章节链接', exact: true}).click();
     await page.getByText('链接已复制，包含当前数据集与分析。', {exact: true}).waitFor();
     assert.equal(await page.evaluate(() => navigator.clipboard.readText()), page.url());
-    await page.getByLabel('选择本章分析', {exact: true}).selectOption('work-types/A0-work-types'); await ready('work-types');
+    await page.goto(route('rw,oa', 'work-types/A0-work-types')); await ready('work-types');
     assert.equal(await page.getByText('链接已复制，包含当前数据集与分析。', {exact: true}).count(), 0);
+    if (!await page.locator('.report-explorer').evaluate(element => element.open)) await page.getByRole('button', {name: '查找数据专题 ↓'}).click();
     await page.evaluate(() => {Object.defineProperty(navigator.clipboard, 'writeText', {configurable: true, value: async () => {throw Error('blocked for failure test');}});});
-    await page.getByRole('button', {name: '复制当前分析链接', exact: true}).click();
+    await page.getByRole('button', {name: '复制当前章节链接', exact: true}).click();
     await page.getByText('无法自动复制，请复制浏览器地址栏中的完整链接。', {exact: true}).waitFor();
   });
   await check('unsupported source/slice and invalid source never show replacement evidence', async () => {
@@ -141,9 +145,10 @@ try {
     await mobile.locator('[data-screening-row="excluded_suspected_notice"]').tap();
     assert.match(await mobile.locator('.report-bar-detail').innerText(), /已锁定.*标题疑似/s);
     await mobile.getByRole('button', {name: '取消锁定', exact: true}).tap();
-    await mobile.getByText('报告目录', {exact: true}).tap();
-    assert.equal(await mobile.locator('.report-chapters nav a').count(), 10);
-    await mobile.getByRole('link', {name: '学科与主题', exact: true}).tap(); await mobile.locator('.discipline-tree').waitFor();
+    await mobile.getByRole('button', {name: '报告目录', exact: true}).tap();
+    assert.equal(await mobile.getByRole('dialog', {name: '报告目录'}).isVisible(), true);
+    assert.equal(await mobile.getByRole('navigation', {name: '快照报告章节'}).locator('a').count(), 10);
+    await mobile.getByRole('link', {name: '学科与主题', exact: true}).tap(); await mobile.locator('.discipline-results').waitFor();
     assert.equal(await mobile.locator('.report-overview').count(), 0);
     await mobile.goBack(); await mobile.locator('.report-screening-plot').waitFor(); await touch.close();
   });

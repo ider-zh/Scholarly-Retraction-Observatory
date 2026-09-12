@@ -1,0 +1,10 @@
+.snapshot-chart-range .snapshot-range-control {flex: 1 1 260px; min-width: 0; padding: 0 12px;}
+.snapshot-chart-range .snapshot-range-heading {display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px; font-size: 14px;}
+.snapshot-chart-range .snapshot-range-heading output {font-size: 14px; font-variant-numeric: tabular-nums;}
+.snapshot-chart-range .rc-slider {height: 40px; padding: 17px 0; touch-action: pan-y;}
+.snapshot-chart-range .rc-slider-rail {height: 6px; background: #d9e3e6;}
+.snapshot-chart-range .rc-slider-track {height: 6px; background: #197a86;}
+.snapshot-chart-range .rc-slider-handle {width: 24px; height: 24px; margin-top: -9px; border: 2px solid #197a86; background: #fff; opacity: 1;}
+.snapshot-chart-range .rc-slider-handle:hover {border-color: #104e5a;}
+.snapshot-chart-range .rc-slider-handle:focus-visible {outline: 3px solid #ad7100; outline-offset: 3px; box-shadow: none;}
+@media(max-width:600px) {.snapshot-chart-range .snapshot-range-control {flex-basis: 100%;}}

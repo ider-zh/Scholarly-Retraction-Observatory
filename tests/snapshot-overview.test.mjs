@@ -20,7 +20,9 @@ test('overview defaults to existing screening only for eligible sources and pres
 test('finding, scope, cutoff and cells bind to the selected published slice without modifying data', () => {
   const before = JSON.stringify(charts);
   const narrative = overviewNarrative(screening);
-  assert.match(narrative.finding, /50,331.*43.94%/);
+  const published = screening.rows.find(row => row.id === 'retained_A1');
+  assert(narrative.finding.includes(published.numerator.toLocaleString('zh-CN')));
+  assert(narrative.finding.includes(published.value.toLocaleString('zh-CN', {maximumFractionDigits: manifest.work_type_scope?.includes('all') ? 3 : 2}) + '%'));
   assert.equal(narrative.evidence.metric, screening.metric_id);
   assert.deepEqual(narrative.evidence.scope, screening.scope);
   assert.equal(narrative.evidence.cutoff, screening.metric_observation_cutoff);

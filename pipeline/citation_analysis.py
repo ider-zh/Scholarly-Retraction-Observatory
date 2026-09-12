@@ -212,7 +212,7 @@ def build_charts(release_dir, provenance, entries, works, chart, expected_target
         charts.append(chart('C3', 'C', 'incoming_edge_count', rows, '引用时序可判定性 · ' + mode,
             '有多少观测引用在撤稿之前、之后，或无法判定？', scope=dict(scope, slice_id='C-incoming-' + mode,
                 date_precision='both_dates_full_year_intervals' if mode == 'year_interval_sensitivity' else 'reported_day_or_available_year',
-                citing_role_policy='exclude_selected_known_conflict_suspected_notices' if mode == 'citing_article_review' else 'all_roles',
+                citing_role_policy=('exclude_evidenced_independent_notices' if provenance['config']['role_policy'] == 'original-first-independent-notices-v2' else 'exclude_selected_known_conflict_suspected_notices') if mode == 'citing_article_review' else 'all_roles',
                 citing_work_types=['article', 'review'] if mode == 'citing_article_review' else ['all']),
             denominator=result['target_count'], limitations=limitations,
             extras={'post_retraction_citation_ratio': ratio, 'static_count_audit': result['static_audit']}))

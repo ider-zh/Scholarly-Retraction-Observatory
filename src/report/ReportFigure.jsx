@@ -1,14 +1,16 @@
 import React, {useId, useState} from 'react';
 import {number} from './reader.js';
-import {overviewEvidence, SCREENING_NOTES, screeningRows} from './overview.js';
+import {overviewEvidence, screeningNote, screeningRows} from './overview.js';
+import {isBroadChart} from './workPolicy.js';
+import {chapterCaption} from './chapter.js';
 
 export function FigureCaption({chart, children}) {
-  return <figcaption className="report-caption"><p>{children}</p><p>来源：OpenAlex 主体库 · 观察截至 {chart.metric_observation_cutoff}。计数单位为独立文献记录；保留组对应研究论文候选。图中比例为筛选构成，不是撤稿率。</p></figcaption>;
+  return <figcaption className="report-caption"><p>{children}</p><p>{chart.chart_id === 'screening' ? `来源：OpenAlex 主体库 · 观察截至 ${chart.metric_observation_cutoff}。计数单位为独立文献记录；保留组对应${isBroadChart(chart) ? '宽口径文献候选' : '研究论文候选'}。图中比例为筛选构成，不是撤稿率。` : chapterCaption(chart)}</p></figcaption>;
 }
 
-export function Figure({title, subtitle, children, caption, dataTools}) {
+export function Figure({title, subtitle, children, caption, dataTools, kicker = '图 1 · OpenAlex 筛选范围'}) {
   const titleId = useId();
-  return <figure className="report-figure" aria-labelledby={titleId}><header><p className="report-figure-number">图 1 · OpenAlex 筛选范围</p><h2 id={titleId}>{title}</h2><p className="report-figure-subtitle">{subtitle}</p></header>{children}{caption}{dataTools}</figure>;
+  return <figure className="report-figure" aria-labelledby={titleId}><header><p className="report-figure-number">{kicker}</p><h2 id={titleId}>{title}</h2><p className="report-figure-subtitle">{subtitle}</p></header>{children}{caption}{dataTools}</figure>;
 }
 
 export default function ScreeningFigure({chart, Export}) {
@@ -33,6 +35,6 @@ export default function ScreeningFigure({chart, Export}) {
       <div className="report-bar-axis" aria-hidden="true"><span/><div>{[0, 25, 50, 75, 100].map(value => <span key={value}>{value}%</span>)}</div><span/></div>
     </div>
     <p id={descriptionId} className="report-chart-help">悬停、轻触或键盘聚焦查看分组说明；点击 / Enter 锁定，Esc 取消，方向键切换。数值始终直接标注。</p>
-    <div className="report-bar-detail" role="status" aria-live="polite" aria-atomic="true">{current ? <><strong>{pinned ? '已锁定 · ' : ''}{current.label}</strong><span>n = {number(current.numerator)} / N = {number(current.denominator)}；{SCREENING_NOTES[current.id] || '按本图已发布筛选规则归组。'}</span>{pinned && <button onClick={() => {setPinned(null); setHovered(null);}}>取消锁定</button>}</> : <span>深色组进入默认论文分析，其余组留在来源核算中。标题疑似通知是规则筛查，不是逐篇裁定。</span>}</div>
+    <div className="report-bar-detail" role="status" aria-live="polite" aria-atomic="true">{current ? <><strong>{pinned ? '已锁定 · ' : ''}{current.label}</strong><span>n = {number(current.numerator)} / N = {number(current.denominator)}；{screeningNote(chart, current)}</span>{pinned && <button onClick={() => {setPinned(null); setHovered(null);}}>取消锁定</button>}</> : <span>{isBroadChart(chart) ? '深色组进入宽口径分析；标题、类型和身份冲突不单独导致排除。候选不等于已逐篇确认的原论文。' : '深色组进入默认论文分析，其余组留在来源核算中。标题疑似通知是规则筛查，不是逐篇裁定。'}</span>}</div>
   </Figure>;
 }

@@ -11,11 +11,13 @@ import time
 import duckdb
 
 from .validate_snapshot import atomic_json, digest, now
+from .work_policy import is_broad
 
 
 def run(release_dir, workers=6, threads=8, memory_limit='24GB'):
     release_dir = Path(release_dir)
     provenance = json.loads((release_dir/'provenance.json').read_text())
+    broad = is_broad(provenance)
     validation_path = Path(provenance['validation_report'])
     validation = json.loads(validation_path.read_text())
     root = Path(validation['snapshot_dir'])
@@ -54,7 +56,7 @@ def run(release_dir, workers=6, threads=8, memory_limit='24GB'):
         connection.read_parquet(str(source), hive_partitioning=False).create_view('source_work', replace=True)
         connection.read_parquet(str(release_dir/'shards'/key/'identifiers.parquet')).create_view('identities', replace=True)
         query = f'''SELECT source_work.id, source_work.concepts FROM source_work SEMI JOIN
-            (SELECT id FROM identities WHERE is_xpac IS FALSE AND type='article'
+            (SELECT id FROM identities WHERE is_xpac IS FALSE AND ({'TRUE' if broad else 'FALSE'} OR type='article')
                 AND document_role IN ('original_supported','unresolved')
                 AND publication_year BETWEEN 1 AND {int(cutoff[:4])}
                 AND (publication_date IS NULL OR publication_date <= DATE '{cutoff}')) candidates USING(id)'''

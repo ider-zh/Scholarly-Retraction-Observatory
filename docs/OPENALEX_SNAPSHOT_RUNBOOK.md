@@ -134,16 +134,17 @@ projected columns with the analytical workers paused reached approximately
 the command creates no second snapshot and does not prove full-file integrity.
 For a resumed run, `--skip-completed-run "$RUN_DIR"` excludes completed main shards.
 
-For the following commands, `RUN_DIR` denotes that external run directory:
+For the following commands, `RUN_DIR` denotes that external run directory and
+`RW_CSV` denotes the original RW CSV whose SHA-256 matches the scan provenance:
 
 ```bash
 python -m pipeline.snapshot_dimensions "$RUN_DIR" --workers 4 --threads 4 --memory-limit 16GB
-python -m pipeline.snapshot_report "$RUN_DIR"
+python -m pipeline.snapshot_report "$RUN_DIR" --rw-csv "$RW_CSV"
 python -m pipeline.snapshot_citations "$RUN_DIR" --workers 6 --threads 8 --memory-limit 32GB
 python -m pipeline.snapshot_supplement "$RUN_DIR" --workers 6 --threads 8 --memory-limit 32GB
 python -m pipeline.snapshot_concepts "$RUN_DIR" --workers 6 --threads 8 --memory-limit 24GB
 python -m pipeline.snapshot_taxonomy "$RUN_DIR" --workers 6 --threads 8 --memory-limit 32GB
-python -m pipeline.snapshot_report "$RUN_DIR"
+python -m pipeline.snapshot_report "$RUN_DIR" --rw-csv "$RW_CSV"
 python -m pipeline.publish_snapshot "$RUN_DIR/report"
 npm run build
 ```
@@ -155,6 +156,10 @@ report checks that the Field partition, including unknown Field, reproduces the
 original D exactly. Published denominator presets are intentionally finite.
 
 All Parquet shards, RW originals/notices, candidates, and match records stay local.
+The optional `--rw-csv` enables the separate RW raw-author-name ranking by joining
+only canonical original-paper record IDs. Missing input leaves this analysis
+explicitly uncomputed; a mismatched hash aborts generation. It never substitutes
+the legacy report's author counts or treats name strings as OpenAlex identities.
 `snapshot_report` refuses an incomplete full scan. It writes aggregate assets to
 the local run directory; nothing is copied into `public/` until `publish_snapshot`
 passes the independent v2/v3 schema checks, hash checks, exact path allowlist,
@@ -168,6 +173,15 @@ Chapter fetches verify release IDs and SHA-256 and cancel outdated requests.
 Country counting is a chart-local transform of already published cells; it does
 not redistribute weights or create an uncomputed intersection. CSV exports carry
 the selected metric, scope, release, dates, and methods.
+
+The owner-requested `country-grouping-cn-includes-tw-v1` grouping is a separate
+upstream statistical operation: source `TW` is mapped to `CN` before each paper's
+country set is deduplicated. Counts, fractional weights, collaboration and full
+publication denominators use the same grouping. Other codes are unchanged.
+Changing this policy requires rerunning `snapshot_dimensions` and then
+`snapshot_report`; the report rejects the previous denominator marker. Do not
+sum old country cells or recolor them as a substitute. Dimension checkpoints are
+keyed by both scanner and grouping code. See `COUNTRY_GROUPING_REVIEW.md`.
 
 ## Interpretation and current limits
 

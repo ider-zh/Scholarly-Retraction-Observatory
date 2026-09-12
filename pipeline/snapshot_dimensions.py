@@ -11,21 +11,24 @@ import time
 import duckdb
 
 from .validate_snapshot import atomic_json, digest, now
+from .work_policy import is_broad
+from .country_grouping import VERSION as COUNTRY_GROUPING, country_list_sql
 
 
-VERSION = 'dimension-denominators-v1'
+VERSION = 'dimension-denominators-v2-country-grouping'
 
 
 def run(release_dir, workers=4, threads=4, memory_limit='16GB'):
     release_dir = Path(release_dir)
     provenance = json.loads((release_dir / 'provenance.json').read_text())
+    broad = is_broad(provenance)
     validation_path = Path(provenance['validation_report'])
     validation = json.loads(validation_path.read_text())
     source_root = Path(validation['snapshot_dir'])
     entries = [entry for entry in json.loads((validation_path.parent / 'files.json').read_text()) if entry['entity'] == 'works']
     local = threading.local()
     connections = []
-    code_hash = digest(Path(__file__).read_bytes())
+    code_hash = digest(Path(__file__).read_bytes() + Path(__file__).with_name('country_grouping.py').read_bytes() + Path(__file__).with_name('work_policy.py').read_bytes() + provenance['config_sha256'].encode())
     output = release_dir / 'dimensions' / code_hash
     output.mkdir(parents=True, exist_ok=True)
     started = time.monotonic()
@@ -53,10 +56,11 @@ def run(release_dir, workers=4, threads=4, memory_limit='16GB'):
         connection.execute(f'''CREATE OR REPLACE TEMP TABLE eligible_dimensions AS
             WITH classified AS (
                 SELECT source_work.*, coalesce(role_evidence.document_role, CASE
+                    WHEN {'TRUE' if broad else 'FALSE'} THEN 'unresolved'
                     WHEN regexp_matches(coalesce(source_work.title, ''), '(?i)^\\s*(retraction\\b|retracted\\b|withdrawal notice\\b|correction\\b|erratum\\b|corrigendum\\b|expression of concern\\b)')
                     THEN 'suspected_notice' ELSE 'unresolved' END) AS role
                 FROM source_work LEFT JOIN role_evidence USING (id)
-                WHERE source_work.is_xpac IS FALSE AND source_work.type IN ('article', 'review')
+                WHERE source_work.is_xpac IS FALSE AND ({'TRUE' if broad else 'FALSE'} OR source_work.type IN ('article', 'review'))
                     AND source_work.publication_year BETWEEN 1 AND {int(validation['oa_snapshot_date'][:4])}
                     AND (source_work.publication_date IS NULL OR source_work.publication_date <= DATE '{validation['oa_snapshot_date']}')
             ) SELECT id, type, publication_year, primary_topic.field.id AS field_id,
@@ -69,6 +73,11 @@ def run(release_dir, workers=4, threads=4, memory_limit='16GB'):
                 list_distinct(list_filter(flatten(list_transform(authorships, author -> author.countries)),
                     country -> regexp_full_match(country, '[A-Z]{{2}}'))) AS authorship_countries
             FROM classified WHERE role IN ('original_supported', 'unresolved')''')
+        connection.execute(f'''CREATE OR REPLACE TEMP TABLE eligible_dimensions AS
+            SELECT * REPLACE (
+                {country_list_sql('institution_countries')} AS institution_countries,
+                {country_list_sql('authorship_countries')} AS authorship_countries
+            ) FROM eligible_dimensions''')
         query = '''
             SELECT 'field' AS dimension, field_id AS group_id, type, publication_year,
                 count(*)::BIGINT AS denominator, count(*)::DOUBLE AS weighted_denominator
@@ -88,7 +97,7 @@ def run(release_dir, workers=4, threads=4, memory_limit='16GB'):
         temporary = str(destination) + '.tmp'
         connection.execute(f"COPY ({query}) TO '{temporary.replace(chr(39), chr(39)*2)}' (FORMAT PARQUET, COMPRESSION ZSTD)")
         os.replace(temporary, destination)
-        atomic_json(marker, {'source_key': entry['key'], 'source_fingerprint': digest(json.dumps(entry, sort_keys=True).encode()), 'version': VERSION})
+        atomic_json(marker, {'source_key': entry['key'], 'source_fingerprint': digest(json.dumps(entry, sort_keys=True).encode()), 'version': VERSION, 'country_grouping_version': COUNTRY_GROUPING})
 
     try:
         with ThreadPoolExecutor(max_workers=workers) as executor:
@@ -100,7 +109,7 @@ def run(release_dir, workers=4, threads=4, memory_limit='16GB'):
     finally:
         for connection in connections:
             connection.close()
-    atomic_json(release_dir / 'dimensions-complete.json', {'version': VERSION, 'code_sha256': code_hash,
+    atomic_json(release_dir / 'dimensions-complete.json', {'version': VERSION, 'code_sha256': code_hash, 'country_grouping_version': COUNTRY_GROUPING,
         'directory': str(output.resolve()), 'files': len(entries), 'completed_at': now(),
         'elapsed_seconds': time.monotonic()-started, 'execution': {'workers': workers, 'threads_per_worker': threads, 'memory_per_worker': memory_limit}})
     return output

@@ -1,0 +1,5 @@
+.snapshot-app .topic-tree details details {margin-left:12px;padding-left:10px;border-left:1px solid #d9dedf;}
+.snapshot-app .topic-tree p {font-size:13px;line-height:1.7;}
+.snapshot-app .topic-tree summary {overflow-wrap:anywhere;}
+.snapshot-app .topic-tree small {font-size:12px;}
+@media(max-width:500px){.snapshot-app .topic-tree details details {margin-left:6px;padding-left:6px;}}

@@ -1,5 +1,6 @@
 import {filterCharts, sourceProfile} from './sources.js';
 import {chartName, insightText, number, selectChart} from './reader.js';
+import {isBroadChart, BROAD_WORK_METHOD} from './workPolicy.js';
 
 export function overviewEvidence(chart, rows = chart.rows) {
   return {aggregate: 'data/snapshot/overview.json', release_id: chart.release_id,
@@ -21,6 +22,7 @@ export function overviewNarrative(chart) {
   if (chart.status !== 'ready') return {title: chartName(chart), finding: '这项分析尚未达到发布条件。', boundary: chart.unavailable_reason, evidence};
   const retained = chart.rows.find(row => row.id === 'retained_A1');
   if (chart.chart_id === 'screening' && retained?.value != null && retained.denominator > 0) {
+    if (isBroadChart(chart)) return {title: '不凭标题和类型，把撤稿原文挡在分析之外', finding: `${number(retained.denominator)} 条主体库撤稿标记记录中，宽口径保留 ${number(retained.numerator)} 条文献候选（${number(retained.value)}%）。`, boundary: BROAD_WORK_METHOD, evidence};
     return {title: '撤稿标记，不能直接当作原论文数量',
       finding: `${number(retained.denominator)} 条标记记录中，${number(retained.numerator)} 篇研究论文候选进入默认分析，占 ${retained.value.toLocaleString('zh-CN', {maximumFractionDigits: 2})}%。`,
       boundary: '筛选缩小的是研究范围，不代表被排除的记录都无效；这个比例也不是全部发表论文的撤稿率。', evidence};
@@ -36,6 +38,11 @@ export const SCREENING_NOTES = {
   excluded_suspected_notice: '标题规则提示可能是通知，默认暂不纳入；并非逐篇裁定，敏感性计数另行保留。',
   excluded_conflict: '同一标识同时出现原论文与通知身份线索；冲突没有通过自动选择一方来消除。',
 };
+
+export function screeningNote(chart, row) {
+  if (isBroadChart(chart)) return row.id === 'retained_A1' ? BROAD_WORK_METHOD : row.id === 'excluded_known_notice' ? '有明确标识符关系指向另一篇原文，且自身未命中原文标识符；作为独立通知保留在来源核算中，不另算一篇原论文。' : '不符合当前快照的有效发表日期范围。';
+  return SCREENING_NOTES[row.id] || '按本图已发布筛选规则归组。';
+}
 
 export function screeningRows(chart) {
   return [...chart.rows].sort((first, second) => Number(second.id === 'retained_A1') - Number(first.id === 'retained_A1') || (second.value ?? -1) - (first.value ?? -1) || first.id.localeCompare(second.id));

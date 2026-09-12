@@ -1,4 +1,4 @@
-"""Two-level subject explorer: exact counts, coverage shares and cohort rates."""
+"""Taxonomy explorer: exact counts, coverage shares and publication-cohort rates."""
 
 from collections import Counter
 import json
@@ -44,11 +44,14 @@ def subject_nodes(papers, years):
 
 
 def build_explorer(release_dir, provenance, validation, entries, papers, works, cd, denominators, flagged):
+    from .work_policy import is_broad
+    broad = is_broad(provenance)
     release_dir = Path(release_dir)
     marker_path = release_dir/'taxonomy-complete.json'
     if not marker_path.exists():
         return None
     marker = json.loads(marker_path.read_text())
+    topic_dimensions = ('domain', 'field', 'subfield', 'topic') if marker['version'] == 'taxonomy-cohorts-v2' else ('field', 'subfield')
     if marker['scan_config_sha256'] != provenance['config_sha256'] or marker['files'] != len(entries):
         raise ValueError('Taxonomy scan identity mismatch')
     paths = []
@@ -67,51 +70,58 @@ def build_explorer(release_dir, provenance, validation, entries, papers, works, 
         bases.setdefault((dimension, identifier), Counter())[year] = base
     expected_base, expected_flag = Counter(), Counter()
     for (kind, year), count in denominators.items():
-        if kind == 'article':
+        if broad or kind == 'article':
             expected_base[year if year >= 2000 else 0] += count
     for (kind, year), count in flagged.items():
-        if kind == 'article':
+        if broad or kind == 'article':
             expected_flag[year if year >= 2000 else 0] += count
     if bases.get(('scope', 'all'), Counter()) != expected_base or counts.get(('scope', 'all'), Counter()) != expected_flag:
         raise ValueError('Taxonomy cohorts differ from validated article denominator or A1')
-    for dimension in ('field', 'subfield'):
-        partition = Counter()
+    for dimension in topic_dimensions:
+        partition, flagged_partition = Counter(), Counter()
         for (category, identifier), values in bases.items():
             if category == dimension:
                 partition.update(values)
-        if partition != expected_base:
-            raise ValueError('Topic partition does not reproduce D')
+                flagged_partition.update(counts[(category, identifier)])
+        if partition != expected_base or flagged_partition != expected_flag:
+            raise ValueError('Topic partition does not reproduce D/A1')
     reference = json.loads(REFERENCE.read_text())
-    metadata = {'field': {}, 'subfield': {}, 'concept0': {}, 'concept1': {}}
+    metadata = {dimension: {} for dimension in (*topic_dimensions, 'concept0', 'concept1')}
     validation_path = Path(provenance['validation_report'])
     catalog_entries = json.loads((validation_path.parent/'files.json').read_text())
     for entry in catalog_entries:
-        if entry['entity'] not in ('fields', 'subfields', 'concepts'):
+        if entry['entity'] not in tuple(dimension+'s' for dimension in topic_dimensions) + ('concepts',):
             continue
         path = Path(validation['snapshot_dir'])/entry['key']
         stat = path.stat()
         if stat.st_size != entry['actual_bytes'] or stat.st_mtime_ns != entry['mtime_ns']:
             raise ValueError('Taxonomy catalog changed after validation')
-        columns = ['id', 'display_name', 'level'] if entry['entity'] == 'concepts' else ['id', 'display_name', 'field'] if entry['entity'] == 'subfields' else ['id', 'display_name']
+        columns = ['id', 'display_name', 'level'] if entry['entity'] == 'concepts' else ['id', 'display_name']
+        if entry['entity'] != 'concepts':
+            depth = topic_dimensions.index(entry['entity'][:-1])
+            if depth:
+                columns.append(topic_dimensions[depth-1])
         for node in pq.ParquetFile(path).read(columns=columns).to_pylist():
             dimension = 'concept'+str(node['level']) if entry['entity'] == 'concepts' else entry['entity'][:-1]
             if dimension not in metadata:
                 continue
-            parents = reference['parents'].get(node['id'], []) if dimension == 'concept1' else [(node.get('field') or {}).get('id')] if dimension == 'subfield' else []
+            level = int(dimension == 'concept1') if dimension.startswith('concept') else topic_dimensions.index(dimension)
+            parents = reference['parents'].get(node['id'], []) if dimension == 'concept1' else [(node.get(topic_dimensions[level-1]) or {}).get('id')] if not dimension.startswith('concept') and level else []
             metadata[dimension][node['id']] = {'id': node['id'], 'label': node.get('display_name') or node['id'],
-                'level': int(dimension in ('subfield', 'concept1')), 'parents': [parent for parent in parents if parent]}
+                'level': level, 'parents': [parent for parent in parents if parent]}
     matched = {}
     for identifier in cd:
         work = works[identifier]
         year = work['publication_year'] if work['publication_year'] >= 2000 else 0
-        for dimension in ('field', 'subfield'):
-            node = work['topic'].get(dimension) or {}
+        for dimension in topic_dimensions:
+            node = work['topic'] if dimension == 'topic' else work['topic'].get(dimension) or {}
             member = node.get('id') or 'unknown'
             matched.setdefault((dimension, member), Counter())[year] += 1
             if member != 'unknown' and member not in metadata[dimension]:
-                parent = (work['topic'].get('field') or {}).get('id')
+                level = topic_dimensions.index(dimension)
+                parent = (work['topic'].get(topic_dimensions[level-1]) or {}).get('id') if level else None
                 metadata[dimension][member] = {'id': member, 'label': node.get('display_name') or member,
-                    'level': int(dimension == 'subfield'), 'parents': [parent] if dimension == 'subfield' and parent else []}
+                    'level': level, 'parents': [parent] if parent else []}
     concept_marker = json.loads((release_dir/'concepts-complete.json').read_text())
     seen = set()
     for entry in entries:
@@ -141,7 +151,7 @@ def build_explorer(release_dir, provenance, validation, entries, papers, works, 
     totals = {'A1': series(expected_flag, years), 'C_D': series(Counter(works[identifier]['publication_year'] for identifier in cd), years)}
     denominator = series(expected_base, years)
     taxonomies = [subject_nodes(papers, years)]
-    for taxonomy, dimensions in [('topics', ('field', 'subfield')), ('concepts', ('concept0', 'concept1'))]:
+    for taxonomy, dimensions in [('topics', topic_dimensions), ('concepts', ('concept0', 'concept1'))]:
         nodes = []
         for dimension in dimensions:
             level = dimensions.index(dimension)
@@ -156,20 +166,29 @@ def build_explorer(release_dir, provenance, validation, entries, papers, works, 
                 if any(numerator > base for values in node['counts'].values() for numerator, base in zip(values, node['denominator'])):
                     raise ValueError('Taxonomy numerator outside matching publication denominator: '+identifier)
                 nodes.append(node)
-        orphan_id = taxonomy+'-unknown-parent'
-        roots = {node['id'] for node in nodes if node['level'] == 0}
-        for node in nodes:
-            if node['level'] == 1:
-                node['parents'] = [parent for parent in node['parents'] if parent in roots] or [orphan_id]
-        if any(orphan_id in node['parents'] for node in nodes):
-            nodes.append({'id': orphan_id, 'label': '父级未提供 / 标签缺失', 'level': 0, 'parents': [], 'navigation_only': True,
-                'counts': {population: [0]*len(denominator) for population in totals}, 'denominator': [0]*len(denominator)})
+        for level in range(1, len(dimensions)):
+            parents = {node['id'] for node in nodes if node['level'] == level-1}
+            orphan_id = taxonomy+'-unknown-parent' + (str(level) if level > 1 else '')
+            for node in nodes:
+                if node['level'] == level:
+                    if taxonomy == 'topics' and len(dimensions) == 4 and node.get('missing'):
+                        node['parents'] = [dimensions[level-1]+':unknown']
+                    node['parents'] = [parent for parent in node['parents'] if parent in parents] or [orphan_id]
+            if any(orphan_id in node['parents'] for node in nodes):
+                nodes.append({'id': orphan_id, 'label': '父级未提供 / 标签缺失', 'level': level-1,
+                    'parents': [dimensions[level-2]+':unknown'] if level > 1 else [], 'navigation_only': True,
+                    'counts': {population: [0]*len(denominator) for population in totals}, 'denominator': [0]*len(denominator)})
         taxonomies.append({'id': taxonomy, 'label': 'OpenAlex Topics' if taxonomy == 'topics' else 'OpenAlex Concepts（旧体系）',
-            'levels': ['主学科 Field', '子学科 Subfield'] if taxonomy == 'topics' else ['主学科 Level 0', '子学科 Level 1'],
+            'levels': ([{'domain': '大领域 Domain', 'field': '学科 Field', 'subfield': '子学科 Subfield', 'topic': '研究主题 Topic'}[dimension] for dimension in dimensions]) if taxonomy == 'topics' else ['主学科 Level 0', '子学科 Level 1'],
             'populations': ['A1', 'C_D'], 'counts': totals, 'denominator': denominator, 'nodes': nodes,
-            'method': '按主主题的 Field → Subfield，每篇每层只计一次；含无标签论文的分层总数核对全体发文基数。' if taxonomy == 'topics' else '按快照已有第 0/1 级概念 ID 在篇内去重，含已附带的低分/零分标签。不重新打标签。历史官方 V3 祖先链仅用于树导航；多父级不重复存储同一概念统计，不能用子节点加总推算父节点。',
+            'method': '按主主题的 '+ ' → '.join(dimension.title() for dimension in dimensions) +'，每篇每层只计一次；每层含缺失标签的分子分母均核对研究总体。不使用多标签 any-topic 计数或目录 works_count 代替本研究发文分母。' if taxonomy == 'topics' else '按快照已有第 0/1 级概念 ID 在篇内去重，含已附带的低分/零分标签。不重新打标签。历史官方 V3 祖先链仅用于树导航；多父级不重复存储同一概念统计，不能用子节点加总推算父节点。',
             'rate_policy': '每万篇比例 = 本节点记录论文数 / 同范围、同分类、同发表年份的全部合格 article × 10,000。Concepts 仅代表已有旧标签的可比记录，不是当前分类下的总体风险。' if taxonomy == 'concepts' else '每万篇比例的分子分母使用相同 article、主体库、原论文身份、分类及发表年份口径。不是不端发生率或因果风险。',
             'reference': 'https://help.openalex.org/data/topics/' if taxonomy == 'topics' else reference['documentation']})
+    if broad:
+        from .work_policy import METHOD
+        for taxonomy in taxonomies:
+            if taxonomy['id'] != 'subjects':
+                taxonomy['rate_policy'] = taxonomy['rate_policy'].replace('article', '宽口径合格 Work') + METHOD
     return {'version': 'discipline-explorer-v1', 'year_start': 2000, 'year_end': year_end,
         'oa_cutoff': validation['oa_snapshot_date'], 'rw_cutoff': provenance['rw']['rw_snapshot_date'],
         'series_layout': 'total_then_publication_years_inclusive', 'taxonomies': taxonomies,

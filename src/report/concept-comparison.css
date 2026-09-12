@@ -1,0 +1,19 @@
+.concept-comparison{min-width:0;margin-top:32px;scroll-margin-top:90px}
+.concept-comparison-canvas{overflow-x:auto;max-width:100%;border-bottom:1px solid #dce5e7}
+.concept-comparison-canvas>svg{display:block;width:100%;font-size:15px;color:#415d73}
+.concept-comparison-child{scroll-margin-top:90px}
+.concept-comparison-canvas text{fill:currentColor}
+.concept-comparison-canvas polyline{cursor:pointer;pointer-events:stroke}
+.concept-comparison-year{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:18px 0}
+.concept-comparison-year input{flex:1;min-width:140px;accent-color:#176b73}
+.concept-comparison-legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:6px;margin:16px 0}
+.concept-comparison-legend button{display:flex;align-items:center;gap:8px;text-align:left;background:transparent;color:#253c48;border:1px solid #dce5e7;padding:10px;min-width:0;font:inherit;font-size:14px;cursor:pointer}
+.concept-comparison-legend button[aria-pressed=true]{background:#e3efed;border-color:#176b73}
+.concept-comparison-legend button>svg{width:28px;flex:none}
+.concept-comparison-legend button>span{overflow-wrap:anywhere}
+.concept-comparison-legend strong{margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-nums}
+.concept-comparison[data-metric=proportion] .concept-comparison-legend{grid-template-columns:repeat(auto-fit,minmax(min(100%,310px),1fr))}
+.concept-comparison[data-metric=proportion] .concept-comparison-legend button{flex-wrap:wrap}
+.concept-comparison-legend strong small{display:block;white-space:normal;font-size:11px;font-weight:400;line-height:1.6}
+.concept-comparison :focus-visible{outline:2px solid #176b73;outline-offset:3px}
+@media(max-width:500px){.concept-comparison-legend{grid-template-columns:1fr}.concept-comparison-legend button{min-height:44px}}

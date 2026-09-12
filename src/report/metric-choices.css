@@ -1,0 +1,6 @@
+.snapshot-app .report-metric-choices {display:flex;flex-wrap:wrap;gap:10px 20px;margin:24px 0;padding:0;border:0;}
+.snapshot-app .report-metric-choices legend {font-weight:600;margin-bottom:12px;}
+.snapshot-app .report-metric-choices label {display:flex;flex-wrap:nowrap;align-items:baseline;gap:8px;padding:8px 0;min-height:44px;}
+.snapshot-app .report-metric-choices label:has(input:checked) {color:#14545a;font-weight:650;}
+.snapshot-app .report-metric-choices label:has(input:disabled) {color:#64737b;}
+.snapshot-app .report-metric-choices input {accent-color:#176b73;flex:none;}

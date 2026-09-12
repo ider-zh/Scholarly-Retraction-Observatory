@@ -164,6 +164,11 @@ class SnapshotAnalysisTests(unittest.TestCase):
         run = scan_snapshot(Path(validation['output_dir']) / 'validation.json', rw_csv, rw_meta,
                             fixture.root.parent / 'analysis', memory_limit='512MB', threads=1, workers=1)
         dimension_scan(run, workers=1, threads=1, memory_limit='512MB')
+        dimension_marker = json.loads((run / 'dimensions-complete.json').read_text())
+        atomic_json(run / 'dimensions-complete.json', {key: value for key, value in dimension_marker.items() if key != 'country_grouping_version'})
+        with self.assertRaisesRegex(ValueError, 'rerun snapshot_dimensions'):
+            build(run)
+        atomic_json(run / 'dimensions-complete.json', dimension_marker)
         report = build(run)
         citation_scan(run, workers=1, threads=1, memory_limit='512MB')
         with patch('pipeline.snapshot_citations.scan_file', side_effect=AssertionError('Completed edge shards must be reused')):
