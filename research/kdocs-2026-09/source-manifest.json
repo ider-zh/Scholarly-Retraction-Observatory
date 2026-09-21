@@ -1,0 +1,175 @@
+{
+  "archived_at": "2026-09-21",
+  "purpose": "Historical process source; no raw datasets or cloud response logs",
+  "comparison": "Archived source files are byte-for-byte identical to the recorded originals.",
+  "files": [
+    {
+      "path": "scripts/build_deck.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/build_deck.py",
+      "source_sha256": "fdfa592cde2a75828ea8d35fa05326db2846f177271fecfbeb8caa5c5491c1da",
+      "archive_sha256": "fdfa592cde2a75828ea8d35fa05326db2846f177271fecfbeb8caa5c5491c1da"
+    },
+    {
+      "path": "scripts/cloud.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/cloud.py",
+      "source_sha256": "6cf4c0fc2ab3ad97055219ad7bddb4e33bad5506c7e48dd57d2f973e63f17705",
+      "archive_sha256": "6cf4c0fc2ab3ad97055219ad7bddb4e33bad5506c7e48dd57d2f973e63f17705"
+    },
+    {
+      "path": "scripts/dark_audit.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/dark_audit.py",
+      "source_sha256": "dcb7dc43341e467e7f791abf49e973d35777a923fb3509049a3ccefdc0951add",
+      "archive_sha256": "dcb7dc43341e467e7f791abf49e973d35777a923fb3509049a3ccefdc0951add"
+    },
+    {
+      "path": "scripts/dark_deck.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/dark_deck.py",
+      "source_sha256": "3c8f7f131457005d1cbbae9ecf744e2e8e656f10f39589de7d6b302e65c0bce0",
+      "archive_sha256": "3c8f7f131457005d1cbbae9ecf744e2e8e656f10f39589de7d6b302e65c0bce0"
+    },
+    {
+      "path": "scripts/event_analysis.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/event_analysis.py",
+      "source_sha256": "528e670da0ce93fee1991a3403d3694c060a160ce1a9d35afd50d0b3cf1bfa84",
+      "archive_sha256": "528e670da0ce93fee1991a3403d3694c060a160ce1a9d35afd50d0b3cf1bfa84"
+    },
+    {
+      "path": "scripts/event_deck.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/event_deck.py",
+      "source_sha256": "86390c6d7c6769a8b6d8aec1b28277af9159911f8ca5662486424816818d7a68",
+      "archive_sha256": "86390c6d7c6769a8b6d8aec1b28277af9159911f8ca5662486424816818d7a68"
+    },
+    {
+      "path": "scripts/event_publish.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/event_publish.py",
+      "source_sha256": "681c5ac8bbaaba31081e88215eb4fe3c47dbf6c19fc04b3fd1a1e30629bfb02a",
+      "archive_sha256": "681c5ac8bbaaba31081e88215eb4fe3c47dbf6c19fc04b3fd1a1e30629bfb02a"
+    },
+    {
+      "path": "scripts/event_verify.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/event_verify.py",
+      "source_sha256": "9502662d0c56ee3051ef49a6ef5aa04a4fac1ed8d70784c1db2ccce68bdea559",
+      "archive_sha256": "9502662d0c56ee3051ef49a6ef5aa04a4fac1ed8d70784c1db2ccce68bdea559"
+    },
+    {
+      "path": "scripts/expand_sample_paragraph.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/expand_sample_paragraph.py",
+      "source_sha256": "b358674d8f6c0538560f8a4d36567659851a90179d320fb7bfd3fbb59abb67cf",
+      "archive_sha256": "b358674d8f6c0538560f8a4d36567659851a90179d320fb7bfd3fbb59abb67cf"
+    },
+    {
+      "path": "scripts/extract.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/extract.py",
+      "source_sha256": "dde7484296d4a9f4a15810dec9683c4db38e094e111fc84487b218b1c01b1ccc",
+      "archive_sha256": "dde7484296d4a9f4a15810dec9683c4db38e094e111fc84487b218b1c01b1ccc"
+    },
+    {
+      "path": "scripts/merge_audit_revision.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/merge_audit_revision.py",
+      "source_sha256": "3199ab748f2b97f753efff94149bc2ecd0818298e3f4bd733244cc6fe1400f3e",
+      "archive_sha256": "3199ab748f2b97f753efff94149bc2ecd0818298e3f4bd733244cc6fe1400f3e"
+    },
+    {
+      "path": "scripts/name_time_views.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/name_time_views.py",
+      "source_sha256": "b11da2726b66546ca2e7b1d305df9eefb21226364dbb1561fa393aa41cc859f0",
+      "archive_sha256": "b11da2726b66546ca2e7b1d305df9eefb21226364dbb1561fa393aa41cc859f0"
+    },
+    {
+      "path": "scripts/neutral_article.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/neutral_article.py",
+      "source_sha256": "bd190b16461d20c0adc5738ab12d12f0fa548b644839b32c6d58c09b24f93f5b",
+      "archive_sha256": "bd190b16461d20c0adc5738ab12d12f0fa548b644839b32c6d58c09b24f93f5b"
+    },
+    {
+      "path": "scripts/nick_build.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/nick_build.py",
+      "source_sha256": "608d8a716d41e100ab0af6e08efa251d52852bb25232a748bb138ca64089a3fc",
+      "archive_sha256": "608d8a716d41e100ab0af6e08efa251d52852bb25232a748bb138ca64089a3fc"
+    },
+    {
+      "path": "scripts/nick_data.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/nick_data.py",
+      "source_sha256": "6f1b2e2999c1b32ef94084e1f47ea88b61a1333b8338a4f7a98917d1cd465fc7",
+      "archive_sha256": "6f1b2e2999c1b32ef94084e1f47ea88b61a1333b8338a4f7a98917d1cd465fc7"
+    },
+    {
+      "path": "scripts/nick_publish.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/nick_publish.py",
+      "source_sha256": "a0813e0af98ec79bc7dd462b1e40d0e67646e4cb4d4fcc0c5f30fee3ba91a165",
+      "archive_sha256": "a0813e0af98ec79bc7dd462b1e40d0e67646e4cb4d4fcc0c5f30fee3ba91a165"
+    },
+    {
+      "path": "scripts/nick_refine.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/nick_refine.py",
+      "source_sha256": "65b4ba990463dbb70775cb54fad164469f69281a7e9f98cedfe59a279390f76a",
+      "archive_sha256": "65b4ba990463dbb70775cb54fad164469f69281a7e9f98cedfe59a279390f76a"
+    },
+    {
+      "path": "scripts/nick_refine_publish.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/nick_refine_publish.py",
+      "source_sha256": "ff13c49c49da60fb8af18e4bb9c9e033c82c15775f035d27a66ff49b7d923dde",
+      "archive_sha256": "ff13c49c49da60fb8af18e4bb9c9e033c82c15775f035d27a66ff49b7d923dde"
+    },
+    {
+      "path": "scripts/patch_page27.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/patch_page27.py",
+      "source_sha256": "904e9e55dcdfb1910d1d1b7c3b0004cc59f32f1bf4d98d873662ea65204e0bb8",
+      "archive_sha256": "904e9e55dcdfb1910d1d1b7c3b0004cc59f32f1bf4d98d873662ea65204e0bb8"
+    },
+    {
+      "path": "scripts/publish_article.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/publish_article.py",
+      "source_sha256": "3fdb1cf807224a5da8d163062927c67f9fc6733146e5269132d0b5b4a96d1366",
+      "archive_sha256": "3fdb1cf807224a5da8d163062927c67f9fc6733146e5269132d0b5b4a96d1366"
+    },
+    {
+      "path": "scripts/publish_dark.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/publish_dark.py",
+      "source_sha256": "8a56464dd327fc2ded52d9f5740ef010a4d395f8beb5e9357929876a83458dc2",
+      "archive_sha256": "8a56464dd327fc2ded52d9f5740ef010a4d395f8beb5e9357929876a83458dc2"
+    },
+    {
+      "path": "scripts/publish_neutral.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/publish_neutral.py",
+      "source_sha256": "ed2a243a06badb705ee509a54b7d57526596947819d35ff2559306758d7f55ac",
+      "archive_sha256": "ed2a243a06badb705ee509a54b7d57526596947819d35ff2559306758d7f55ac"
+    },
+    {
+      "path": "scripts/refactor_time_chapters.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/refactor_time_chapters.py",
+      "source_sha256": "96e3377bad14a7dbc1306cd31bc905d5f3ddf34e2118606c522653352ede9cea",
+      "archive_sha256": "96e3377bad14a7dbc1306cd31bc905d5f3ddf34e2118606c522653352ede9cea"
+    },
+    {
+      "path": "scripts/update_page27.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/update_page27.py",
+      "source_sha256": "4065b1c551a9dcd50f1cdd15de11e4f759c55101a5676b7ff62ab644ed8a656d",
+      "archive_sha256": "4065b1c551a9dcd50f1cdd15de11e4f759c55101a5676b7ff62ab644ed8a656d"
+    },
+    {
+      "path": "scripts/validate.py",
+      "source_path": "/tmp/retraction-kdocs-20260916/validate.py",
+      "source_sha256": "115605866993287e5d1bee6ccf6bbc9758366df7db5cf1d830902182dfb93459",
+      "archive_sha256": "115605866993287e5d1bee6ccf6bbc9758366df7db5cf1d830902182dfb93459"
+    },
+    {
+      "path": "manuscripts/中性综述_OpenAlex撤稿的学科分布与年度变化.md",
+      "source_path": "/tmp/retraction-nick-20260920/中性综述_OpenAlex撤稿的学科分布与年度变化.md",
+      "source_sha256": "5d4af2f0204fd8acd24599441ad8ad696736eb4d15b99507bb5f671235cdfba1",
+      "archive_sha256": "5d4af2f0204fd8acd24599441ad8ad696736eb4d15b99507bb5f671235cdfba1"
+    },
+    {
+      "path": "manuscripts/公众号综述_撤稿记录里的学科地图.md",
+      "source_path": "/tmp/retraction-nick-20260920/公众号综述_撤稿记录里的学科地图.md",
+      "source_sha256": "8694e287959e952cf516c079336bcb14bb1d0b7fa2352c48728c7a7be03c52f2",
+      "archive_sha256": "8694e287959e952cf516c079336bcb14bb1d0b7fa2352c48728c7a7be03c52f2"
+    },
+    {
+      "path": "manuscripts/样本形成过程_详细说明.txt",
+      "source_path": "/tmp/retraction-nick-20260920/样本形成过程_详细说明.txt",
+      "source_sha256": "db8b11fd247c5cc0f27ce3c7099b25b3ad0652f936fcf82df70ff6ba0a0a1efe",
+      "archive_sha256": "db8b11fd247c5cc0f27ce3c7099b25b3ad0652f936fcf82df70ff6ba0a0a1efe"
+    }
+  ]
+}
