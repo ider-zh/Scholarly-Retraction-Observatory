@@ -1,0 +1,270 @@
+{
+  "generated_at": "2026-09-23T15:33:01.741541+00:00",
+  "platform": "Linux-6.8.0-52-generic-x86_64-with-glibc2.35",
+  "versions": {
+    "go": "go version go1.26.0 linux/amd64",
+    "rust": "rustc 1.91.0 (f8297e351 2025-10-28)"
+  },
+  "source_sha256": {
+    "graph_read.go": "1ee1e933be1ebbde4160c75106d4fb92911070801eefe8341c4db92a4396b4af",
+    "graph_read.rs": "0bc545a8c9ac1f6d2cc9c9c24692c22866c5602f55347794349aee540c7041ca",
+    "run_engine.py": "e26a2b0822d5551e2fce6e4f6750dc520039a454e4d9ff9b52dc3bf1dd6492e5"
+  },
+  "independent_python_checksum": 11345014099690547900,
+  "runs": [
+    {
+      "build_seconds": 0.263680092,
+      "checksum": 11345014099690547900,
+      "compute_seconds": 9.675828893,
+      "edges": 1855547,
+      "focals": 2400000,
+      "language": "go",
+      "nodes": 120000,
+      "workers": 1,
+      "repeat": 0,
+      "peak_rss_kib": 33372
+    },
+    {
+      "language": "rust",
+      "workers": 1,
+      "nodes": 120000,
+      "edges": 1855547,
+      "focals": 2400000,
+      "checksum": 11345014099690547900,
+      "build_seconds": 0.092921119,
+      "compute_seconds": 6.5575554579999995,
+      "repeat": 0,
+      "peak_rss_kib": 19980
+    },
+    {
+      "build_seconds": 0.292725163,
+      "checksum": 11345014099690547900,
+      "compute_seconds": 1.17525314,
+      "edges": 1855547,
+      "focals": 2400000,
+      "language": "go",
+      "nodes": 120000,
+      "workers": 8,
+      "repeat": 0,
+      "peak_rss_kib": 30640
+    },
+    {
+      "language": "rust",
+      "workers": 8,
+      "nodes": 120000,
+      "edges": 1855547,
+      "focals": 2400000,
+      "checksum": 11345014099690547900,
+      "build_seconds": 0.090538309,
+      "compute_seconds": 1.1310013859999999,
+      "repeat": 0,
+      "peak_rss_kib": 21256
+    },
+    {
+      "build_seconds": 0.293824194,
+      "checksum": 11345014099690547900,
+      "compute_seconds": 0.364233017,
+      "edges": 1855547,
+      "focals": 2400000,
+      "language": "go",
+      "nodes": 120000,
+      "workers": 40,
+      "repeat": 0,
+      "peak_rss_kib": 44716
+    },
+    {
+      "language": "rust",
+      "workers": 40,
+      "nodes": 120000,
+      "edges": 1855547,
+      "focals": 2400000,
+      "checksum": 11345014099690547900,
+      "build_seconds": 0.09020358,
+      "compute_seconds": 0.594627743,
+      "repeat": 0,
+      "peak_rss_kib": 33932
+    },
+    {
+      "language": "rust",
+      "workers": 1,
+      "nodes": 120000,
+      "edges": 1855547,
+      "focals": 2400000,
+      "checksum": 11345014099690547900,
+      "build_seconds": 0.090996723,
+      "compute_seconds": 6.204642325,
+      "repeat": 1,
+      "peak_rss_kib": 19976
+    },
+    {
+      "build_seconds": 0.254336388,
+      "checksum": 11345014099690547900,
+      "compute_seconds": 9.534805389,
+      "edges": 1855547,
+      "focals": 2400000,
+      "language": "go",
+      "nodes": 120000,
+      "workers": 1,
+      "repeat": 1,
+      "peak_rss_kib": 29796
+    },
+    {
+      "language": "rust",
+      "workers": 8,
+      "nodes": 120000,
+      "edges": 1855547,
+      "focals": 2400000,
+      "checksum": 11345014099690547900,
+      "build_seconds": 0.09157935,
+      "compute_seconds": 1.125553904,
+      "repeat": 1,
+      "peak_rss_kib": 21260
+    },
+    {
+      "build_seconds": 0.311220624,
+      "checksum": 11345014099690547900,
+      "compute_seconds": 1.179270734,
+      "edges": 1855547,
+      "focals": 2400000,
+      "language": "go",
+      "nodes": 120000,
+      "workers": 8,
+      "repeat": 1,
+      "peak_rss_kib": 35412
+    },
+    {
+      "language": "rust",
+      "workers": 40,
+      "nodes": 120000,
+      "edges": 1855547,
+      "focals": 2400000,
+      "checksum": 11345014099690547900,
+      "build_seconds": 0.096805953,
+      "compute_seconds": 0.593142631,
+      "repeat": 1,
+      "peak_rss_kib": 33548
+    },
+    {
+      "build_seconds": 0.294324781,
+      "checksum": 11345014099690547900,
+      "compute_seconds": 0.35035932,
+      "edges": 1855547,
+      "focals": 2400000,
+      "language": "go",
+      "nodes": 120000,
+      "workers": 40,
+      "repeat": 1,
+      "peak_rss_kib": 43576
+    },
+    {
+      "build_seconds": 0.275031829,
+      "checksum": 11345014099690547900,
+      "compute_seconds": 9.422834059,
+      "edges": 1855547,
+      "focals": 2400000,
+      "language": "go",
+      "nodes": 120000,
+      "workers": 1,
+      "repeat": 2,
+      "peak_rss_kib": 33464
+    },
+    {
+      "language": "rust",
+      "workers": 1,
+      "nodes": 120000,
+      "edges": 1855547,
+      "focals": 2400000,
+      "checksum": 11345014099690547900,
+      "build_seconds": 0.094029129,
+      "compute_seconds": 6.323833959,
+      "repeat": 2,
+      "peak_rss_kib": 19980
+    },
+    {
+      "build_seconds": 0.28433513,
+      "checksum": 11345014099690547900,
+      "compute_seconds": 1.1567262010000001,
+      "edges": 1855547,
+      "focals": 2400000,
+      "language": "go",
+      "nodes": 120000,
+      "workers": 8,
+      "repeat": 2,
+      "peak_rss_kib": 29964
+    },
+    {
+      "language": "rust",
+      "workers": 8,
+      "nodes": 120000,
+      "edges": 1855547,
+      "focals": 2400000,
+      "checksum": 11345014099690547900,
+      "build_seconds": 0.092097414,
+      "compute_seconds": 1.136514134,
+      "repeat": 2,
+      "peak_rss_kib": 21648
+    },
+    {
+      "build_seconds": 0.271857115,
+      "checksum": 11345014099690547900,
+      "compute_seconds": 0.345652009,
+      "edges": 1855547,
+      "focals": 2400000,
+      "language": "go",
+      "nodes": 120000,
+      "workers": 40,
+      "repeat": 2,
+      "peak_rss_kib": 43572
+    },
+    {
+      "language": "rust",
+      "workers": 40,
+      "nodes": 120000,
+      "edges": 1855547,
+      "focals": 2400000,
+      "checksum": 11345014099690547900,
+      "build_seconds": 0.090047166,
+      "compute_seconds": 0.543562816,
+      "repeat": 2,
+      "peak_rss_kib": 33548
+    }
+  ],
+  "summary": [
+    {
+      "language": "go",
+      "workers": 1,
+      "median_compute_seconds": 9.534805389,
+      "max_peak_rss_kib": 33464
+    },
+    {
+      "language": "go",
+      "workers": 8,
+      "median_compute_seconds": 1.17525314,
+      "max_peak_rss_kib": 35412
+    },
+    {
+      "language": "go",
+      "workers": 40,
+      "median_compute_seconds": 0.35035932,
+      "max_peak_rss_kib": 44716
+    },
+    {
+      "language": "rust",
+      "workers": 1,
+      "median_compute_seconds": 6.323833959,
+      "max_peak_rss_kib": 19980
+    },
+    {
+      "language": "rust",
+      "workers": 8,
+      "median_compute_seconds": 1.1310013859999999,
+      "max_peak_rss_kib": 21648
+    },
+    {
+      "language": "rust",
+      "workers": 40,
+      "median_compute_seconds": 0.593142631,
+      "max_peak_rss_kib": 33932
+    }
+  ]
+}

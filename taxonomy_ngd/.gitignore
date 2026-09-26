@@ -1,0 +1,15 @@
+__pycache__/
+.venv/
+artifacts/
+outputs/
+checkpoints/
+spill/
+logs/
+*.parquet
+*.arrow
+*.duckdb*
+*.csv
+*.csv.gz
+*.json.gz
+*.jsonl*
+*.log*

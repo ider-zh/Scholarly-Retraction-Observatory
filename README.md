@@ -26,6 +26,9 @@ Python 离线处理（原始 CSV / OpenAlex 缓存，仅本地或 Actions）
 - `public/data/samples.json`：最多 36 条简化展示样本；不用于统计推断。
 - `data/reference/openalex-audit.json`：带日期的独立数据源数量核查，不作为主统计总体。
 - `docs/RESEARCH.md`：研究范围、公式、方法和限制。
+- `disruption/`：独立的 OpenAlex Disruption 离线计算模块，已完成全库年度统计、双口径窗口压缩缓存和质量验收，覆盖 510,372,821 Works。通过 Work ID 为撤稿研究提供辅助数据，不接入网站构建。见 [验收与查询入口](disruption/COMPLETION.md)。
+- `taxonomy_ngd/`：独立的 Concepts / Topics 学科标签共现距离模块，已完成全库计算、压缩 membership/共现缓存与验收；覆盖 510,372,821 Works。见 [交付说明](taxonomy_ngd/COMPLETION.md)。
+- `research/disruption-ngd-2026-09/`：撤稿学科 × Disruption × NGD 探索研究、统计复核及金山 PPT 生成代码。近期工作和待办见 [Handoff](docs/HANDOFF.md)。
 - `scripts/check-public-data.mjs`：发布检查，拒绝 Gzip、CSV、Parquet、NDJSON 等数据文件；v2 与 v3 全部公开 JSON 合计限制为 2 MiB。
 - `dist/`：Vite 生成的可发布产物，不提交 Git。
 

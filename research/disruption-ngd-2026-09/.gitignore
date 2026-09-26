@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.parquet
+*.duckdb*
+*.pptx
+*.pdf
+*.png
+*.jpg
+outputs/

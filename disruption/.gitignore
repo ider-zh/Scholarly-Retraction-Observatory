@@ -1,0 +1,17 @@
+data/
+artifacts/
+outputs/
+checkpoints/
+spill/
+logs/
+.venv/
+*.parquet
+*.arrow
+*.feather
+*.duckdb*
+*.sqlite*
+*.db
+*.csv
+*.jsonl
+*.ndjson
+*.log
