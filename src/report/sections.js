@@ -23,5 +23,5 @@ export function sectionData(current, page) {
 export function sectionDisciplineHref(page, sources, selection) {
   const params = new URLSearchParams({sources: sources.join(',')});
   for (const key of ['taxonomy', 'population', 'node', 'parent', 'metric']) if (selection[key]) params.set(key, selection[key]);
-  return `#/snapshot/${page}?${params}`;
+  return `#/${page}?${params}`;
 }

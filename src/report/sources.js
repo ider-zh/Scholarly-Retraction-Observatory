@@ -24,5 +24,5 @@ export function parseSources(value) {
 export function reportHref(page, sources, slice = '') {
   const params = new URLSearchParams({sources: SOURCE_ORDER.filter(source => sources.includes(source)).join(',')});
   if (slice) params.set('slice', slice);
-  return `#/snapshot/${page}?${params}`;
+  return `#/${page}?${params}`;
 }

@@ -63,7 +63,7 @@ test('Fifteen slides have notes and source labels, with no external runtime depe
 
 test('Presentation report links retain supported source, slice and discipline node contracts', async () => {
   const fields = validateChunk(JSON.parse(await readFile('public/data/snapshot/fields.json', 'utf8')), manifest, 'fields');
-  const links = [...html.matchAll(/href="\.\.\/(#\/snapshot\/[^\"]+)"/g)].map(match => match[1].replaceAll('&amp;', '&'));
+  const links = [...html.matchAll(/href="\.\.\/\.\.\/reports\/v2\/(#\/[^\"]+)"/g)].map(match => match[1].replaceAll('&amp;', '&'));
   assert(links.length >= 10);
   assert(links.filter(link => new URLSearchParams(link.split('?')[1]).get('metric') === 'proportion').length >= 4);
   for (const link of links) {

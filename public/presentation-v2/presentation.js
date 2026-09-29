@@ -1,4 +1,13 @@
 (() => {
+  document.querySelector('#share-link').onclick = async event => {
+    try {
+      await navigator.clipboard.writeText(location.href);
+      event.target.textContent = '已复制';
+      setTimeout(() => {event.target.textContent = '分享';}, 2000);
+    } catch {
+      window.prompt('复制当前幻灯片链接', location.href);
+    }
+  };
   const slides = [...document.querySelectorAll('.deck > .slide')];
   const picker = document.querySelector('#slide-picker');
   const dialog = document.querySelector('#evidence-dialog');

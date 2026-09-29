@@ -1,3 +1,4 @@
+import {siteHref} from '../siteRoutes.js';
 import React, {useEffect, useRef, useState} from 'react';
 import {validateManifest, validateChunk} from './schema.js';
 import {verifyReportBytes} from './integrity.js';
@@ -129,14 +130,14 @@ export default function SnapshotReport() {
   const [shareStatus, setShareStatus] = useState('');
   const headingRef = useRef(null), analysisRef = useRef(null), preserveSourceFocus = useRef(false);
   useEffect(() => {const change = () => {setShareStatus(''); setRoute(readRoute());}; window.addEventListener('hashchange', change); return () => window.removeEventListener('hashchange', change);}, []);
-  useEffect(() => {const controller = new AbortController(); checkedJSON(`${import.meta.env.BASE_URL}data/snapshot/manifest.json`, controller.signal).then(validateManifest).then(setManifest).catch(error => {if (error.name !== 'AbortError') setManifestError(error.message);}); return () => controller.abort();}, []);
+  useEffect(() => {const controller = new AbortController(); checkedJSON(`${siteHref()}data/snapshot/manifest.json`, controller.signal).then(validateManifest).then(setManifest).catch(error => {if (error.name !== 'AbortError') setManifestError(error.message);}); return () => controller.abort();}, []);
   useEffect(() => {
     if (!manifest) return;
     const controller = new AbortController(), page = route.page;
     setState({key: page, charts: null, error: null});
     const dataPage = aggregateSection(page);
     const file = manifest.files.find(item => item.path.endsWith(`/${dataPage}.json`));
-    checkedJSON(`${import.meta.env.BASE_URL}${file.path}`, controller.signal, file).then(chunk => validateChunk(chunk, manifest, dataPage))
+    checkedJSON(`${siteHref()}${file.path}`, controller.signal, file).then(chunk => validateChunk(chunk, manifest, dataPage))
       .then(chunk => {if (!controller.signal.aborted) setState({key: page, charts: chunk.charts, explorer: chunk.discipline_explorer, countryExplorer: chunk.country_explorer, error: null});})
       .catch(error => {if (error.name !== 'AbortError') setState({key: page, charts: null, error: error.message});});
     return () => controller.abort();

@@ -1,3 +1,4 @@
+import {siteHref} from '../siteRoutes.js';
 import React, {useEffect, useState} from 'react';
 import {verifyReportBytes} from './integrity.js';
 import {screeningExamplesAsset} from './screeningExamplesAsset.js';
@@ -12,7 +13,7 @@ export default function ScreeningExamples({manifest, chart}) {
     const controller = new AbortController();
     async function load() {
       try {
-        const response = await fetch(`${import.meta.env.BASE_URL}data/screening-examples.json`, {signal: controller.signal});
+        const response = await fetch(`${siteHref()}data/screening-examples.json`, {signal: controller.signal});
         if (!response.ok) throw new Error('排除案例暂时无法加载');
         const bytes = await response.arrayBuffer();
         await verifyReportBytes(bytes, screeningExamplesAsset);
@@ -47,7 +48,7 @@ export default function ScreeningExamples({manifest, chart}) {
           })}</ol>
         </details> : null;
       })}
-      <details className="report-methods"><summary>如何抽样、如何复核？</summary><p>案例来自冻结扫描；抽样沿用下载文件中记录的旧筛选规则，现行全体筛选计数另与上图校验。层内按 SHA-256("screening-examples-v1/" + Work ID) 升序选择前 2 条，不按标题是否“像通知”挑选。综述单列是为展示研究范围的边界；各层样本数不能用于估计误排率。</p><p>标题来自同一份已验证快照；身份字段来自已有扫描。外部链接用于进一步复核，不代表所有案例都已逐篇核查。标题前缀、类型标注、标识符关联都可能有局限；判断误排率需要更大的分层随机样本与独立人工复核。</p><p>抽样版本 {current.data.sampling_version}；角色规则 {current.data.role_policy_version}。沿用旧样本中已有分组，不为新增日期排除分组补造案例。</p><a href={`${import.meta.env.BASE_URL}data/screening-examples.json`} download="screening-examples.json">下载这 {current.data.sample_count} 条案例及抽样来源</a></details>
+      <details className="report-methods"><summary>如何抽样、如何复核？</summary><p>案例来自冻结扫描；抽样沿用下载文件中记录的旧筛选规则，现行全体筛选计数另与上图校验。层内按 SHA-256("screening-examples-v1/" + Work ID) 升序选择前 2 条，不按标题是否“像通知”挑选。综述单列是为展示研究范围的边界；各层样本数不能用于估计误排率。</p><p>标题来自同一份已验证快照；身份字段来自已有扫描。外部链接用于进一步复核，不代表所有案例都已逐篇核查。标题前缀、类型标注、标识符关联都可能有局限；判断误排率需要更大的分层随机样本与独立人工复核。</p><p>抽样版本 {current.data.sampling_version}；角色规则 {current.data.role_policy_version}。沿用旧样本中已有分组，不为新增日期排除分组补造案例。</p><a href={`${siteHref()}data/screening-examples.json`} download="screening-examples.json">下载这 {current.data.sample_count} 条案例及抽样来源</a></details>
     </>}
   </section>;
 }

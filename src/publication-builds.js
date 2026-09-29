@@ -24,7 +24,7 @@ export const publicationBuilds = {
     ]
   },
   "ppt": {
-    "builtAt": "2026-09-12T16:31:33.644Z",
+    "builtAt": "2026-09-29T14:09:10.322Z",
     "label": "演示稿构建时间",
     "sourceDates": [
       {

@@ -13,7 +13,7 @@ export function topicHref(section, topic, sources, slice = '', selection = {}) {
   const params = new URLSearchParams({sources: SOURCE_ORDER.filter(source => sources.includes(source)).join(',')});
   if (slice) params.set('slice', slice);
   for (const key of ['taxonomy', 'population', 'node', 'parent', 'metric']) if (selection[key]) params.set(key, selection[key]);
-  return `#/snapshot/${section}/topic/${encodeURIComponent(topic)}?${params}`;
+  return `#/${section}/topic/${encodeURIComponent(topic)}?${params}`;
 }
 
 export function topicCatalog(charts, sources, explorer, countryExplorer) {

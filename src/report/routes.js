@@ -2,7 +2,8 @@ import {parseSources} from './sources.js';
 import {disciplineTaxonomy} from './sections.js';
 
 export function parseReportRoute(hash, pages) {
-  const [path, query = ''] = hash.replace(/^#/, '').split('?');
+  const normalized = hash.startsWith('#/snapshot') ? hash : `#/snapshot/${hash.replace(/^#\/?/, '')}`;
+  const [path, query = ''] = normalized.replace(/^#/, '').split('?');
   const segments = path.split('/');
   const page = segments[2] || 'overview';
   const params = new URLSearchParams(query);
